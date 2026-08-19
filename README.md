@@ -1,38 +1,98 @@
 # Wallet & Transaksi Saldo API
 
-Sistem wallet dengan REST API yang menjamin integritas data dan keamanan concurrency. Dibangun dengan Go, Echo framework, dan PostgreSQL.
+Sistem wallet dengan REST API yang menjamin integritas data, keamanan concurrency, pembukuan *double-entry ledger*, idempotency tahan balapan, autentikasi JWT, validasi `go-playground/validator`, *structured logging* `zerolog`, dan dokumentasi OpenAPI / Swagger UI. Dibangun menggunakan **Go (Echo Framework)** dan **PostgreSQL**.
+
+---
 
 ## Cara Menjalankan
 
 ### Prasyarat
-- Go 1.21+
-- PostgreSQL 14+ (lokal atau via Docker)
-- Docker & Docker Compose (opsional, untuk PostgreSQL)
+- **Docker & Docker Compose** (direkomendasikan untuk menjalankan seluruh aplikasi + database)
+- **Go 1.24+** (jika ingin menjalankan secara lokal tanpa Docker)
+- **PostgreSQL 14+** (jika menggunakan PostgreSQL lokal)
 
-### Setup Database
+---
 
-**Opsi 1: Docker Compose**
+### ⚠️ Catatan Kompatibilitas Sistem Operasi
+> [!NOTE]
+> Perintah `make` (seperti `make docker-up`, `make run`, `make test`) dirancang untuk lingkungan **Linux**, **macOS**, atau **Windows Subsystem for Linux (WSL)** / Git Bash yang memiliki utilitas `make`.
+> 
+> Bagi pengguna **Windows (PowerShell / Command Prompt)**, gunakan perintah langsung (`docker compose`, `go run`, `go test`) yang telah disediakan pada panduan di bawah ini.
+
+---
+
+### Opsi 1: Menggunakan Docker Compose (Paling Mudah - App + Database)
+
+Cukup jalankan satu perintah untuk membangun Docker Image aplikasi dan menjalankan container PostgreSQL & server API secara bersamaan:
+
+#### 🐧 Linux / macOS / WSL (via Make):
 ```bash
 make docker-up
 ```
 
-**Opsi 2: PostgreSQL Lokal**
-```bash
-# Buat database dan user
-psql -U postgres -c "CREATE DATABASE wallet_db;"
-psql -U postgres -c "CREATE USER wallet_user WITH PASSWORD 'wallet_pass';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE wallet_db TO wallet_user;"
-psql -U postgres -c "ALTER DATABASE wallet_db OWNER TO wallet_user;"
+#### 🪟 Windows (PowerShell / Command Prompt):
+```powershell
+docker compose up -d --build
 ```
 
-### Konfigurasi
+Setelah container berjalan:
+- **API Server**: `http://localhost:8080`
+- **Swagger UI**: `http://localhost:8080/swagger/index.html`
+- **Health Check**: `http://localhost:8080/health`
 
-Salin dan sesuaikan file environment:
-```bash
-cp .env.example .env
-```
+Untuk melihat log aplikasi:
+- **Linux/macOS**: `make docker-logs`
+- **Windows**: `docker compose logs -f app`
 
-Variabel yang tersedia:
+Untuk menghentikan container:
+- **Linux/macOS**: `make docker-down`
+- **Windows**: `docker compose down`
+
+---
+
+### Opsi 2: Menjalankan Secara Lokal (Go + Docker PostgreSQL)
+
+Jika Anda ingin menjalankan server Go secara lokal di komputer host dan hanya menggunakan PostgreSQL di Docker:
+
+1. **Jalankan PostgreSQL via Docker**:
+   - **Linux/macOS**: `make docker-up` (atau `docker compose up -d postgres`)
+   - **Windows**: `docker compose up -d postgres`
+
+2. **Salin File Environment**:
+   - **Linux/macOS**: `cp .env.example .env`
+   - **Windows (PowerShell)**: `copy .env.example .env` (atau `cp .env.example .env` di Git Bash)
+
+3. **Jalankan Aplikasi Go**:
+   - **Linux/macOS**: `make run`
+   - **Windows**: `go run cmd/server/main.go`
+
+---
+
+### Opsi 3: Menjalankan Tes Otomatis
+
+- **Linux/macOS**:
+  ```bash
+  make test           # Jalankan semua unit & integration test
+  make test-unit      # Unit test saja
+  make test-integration # Integration test saja
+  ```
+
+- **Windows (PowerShell / Command Prompt)**:
+  ```powershell
+  # Unit tests saja (tanpa koneksi DB)
+  go test ./tests/unit/... -v -count=1
+
+  # Integration tests (memerlukan PostgreSQL berjalan)
+  go test ./tests/integration/... -v -count=1 -timeout=120s
+
+  # Semua tes
+  go test ./... -v -count=1 -timeout=120s
+  ```
+
+---
+
+## Konfigurasi (.env)
+
 | Variable | Default | Keterangan |
 |---|---|---|
 | `DB_HOST` | `localhost` | Host PostgreSQL |
@@ -42,42 +102,35 @@ Variabel yang tersedia:
 | `DB_NAME` | `wallet_db` | Nama database |
 | `DB_SSLMODE` | `disable` | SSL mode |
 | `SERVER_PORT` | `8080` | Port server HTTP |
+| `JWT_SECRET` | `secret` | Secret key untuk signing token JWT |
 
-### Menjalankan Aplikasi
+---
 
-```bash
-make run
-# atau
-go run cmd/server/main.go
-```
+## Perintah Makefile (Linux / macOS / WSL)
 
-Migrasi database dijalankan otomatis saat aplikasi dimulai.
-
-### Menjalankan Tes
-
-```bash
-# Unit tests saja
-make test-unit
-
-# Integration tests (perlu PostgreSQL)
-make test-integration
-
-# Semua tes
-make test
-```
+| Perintah | Keterangan | Perintah Setara Windows |
+|---|---|---|
+| `make run` | Menjalankan aplikasi secara lokal | `go run cmd/server/main.go` |
+| `make test` | Menjalankan seluruh unit & integration test | `go test ./... -v -count=1 -timeout=120s` |
+| `make test-unit` | Menjalankan unit test saja | `go test ./tests/unit/... -v -count=1` |
+| `make test-integration` | Menjalankan integration test | `go test ./tests/integration/... -v -count=1 -timeout=120s` |
+| `make swagger` | Generasi ulang dokumen OpenAPI / Swagger UI | `swag init -g cmd/server/main.go` |
+| `make docker-build` | Membangun Docker image `wallet-app:latest` | `docker build -t wallet-app:latest .` |
+| `make docker-up` | Membangun & menjalankan container App + PostgreSQL | `docker compose up -d --build` |
+| `make docker-down` | Menghentikan container Docker | `docker compose down` |
+| `make docker-logs` | Melihat log container aplikasi | `docker compose logs -f app` |
+| `make docker-reset` | Mereset database dan container dari awal | `docker compose down -v` lalu `docker compose up -d --build` |
 
 ---
 
 ## Keputusan Desain & Alasannya
 
 ### 1. Representasi Uang: `BIGINT` (Satuan Terkecil)
-
 Semua nilai uang disimpan sebagai `BIGINT` dalam satuan terkecil mata uang (misalnya, Rupiah utuh, bukan desimal). Ini menghilangkan masalah pembulatan floating-point sepenuhnya. API menerima dan mengembalikan nilai integer.
 
 **Alasan**: Floating-point (`float64`) tidak bisa merepresentasikan semua bilangan desimal secara akurat (misalnya, `0.1 + 0.2 != 0.3`). Dalam domain keuangan, keakuratan nilai uang adalah keharusan mutlak.
 
 ### 2. Double-Entry Bookkeeping (Pembukuan Berpasangan)
-
 Setiap mutasi saldo menghasilkan **dua entri ledger**: satu debit dan satu kredit. Untuk top-up, akun sistem (`SYSTEM`) bertindak sebagai counter-party.
 
 | Operasi | Debit (dari) | Kredit (ke) |
@@ -89,7 +142,6 @@ Setiap mutasi saldo menghasilkan **dua entri ledger**: satu debit dan satu kredi
 **Alasan**: Double-entry menjamin bahwa setiap perpindahan uang selalu seimbang. Jika ada selisih, artinya ada bug — dan tes rekonsiliasi akan mendeteksinya.
 
 ### 3. Pessimistic Locking dengan Urutan Konsisten
-
 Saat mutasi, wallet dikunci dengan `SELECT ... FOR UPDATE`. Untuk transfer yang melibatkan dua wallet, penguncian selalu dilakukan **dalam urutan ascending berdasarkan user ID**.
 
 ```
@@ -100,34 +152,26 @@ Transfer B→A: lock(min(A,B)), lock(max(A,B))  ← urutan sama!
 **Alasan**: Tanpa urutan penguncian yang konsisten, dua transfer bersamaan (`A→B` dan `B→A`) bisa saling menunggu (deadlock). Dengan mengunci berdasarkan urutan ID, deadlock tidak mungkin terjadi.
 
 ### 4. Database-Level Safety Net
-
-Constraint `CHECK (balance >= 0)` pada tabel `wallets` memastikan bahwa **bahkan jika ada bug di aplikasi**, PostgreSQL akan menolak saldo negatif. Ini adalah pertahanan berlapis (defense in depth).
+Constraint `CHECK (balance >= 0)` pada tabel `wallets` memastikan bahwa **bahkan jika ada bug di aplikasi**, PostgreSQL akan menolak saldo negatif. Ini adalah pertahanan berlapis (*defense in depth*).
 
 ### 5. Idempotency yang Tahan Balapan (Race-Proof)
-
 Idempotency key disimpan dengan **UNIQUE constraint** pada tabel `transactions`. Mekanisme penanganannya:
-
 1. **Fast path**: Cek apakah key sudah ada (di luar transaksi, tanpa lock). Jika ada, kembalikan response yang di-cache.
 2. **Slow path**: Jika belum ada, jalankan operasi dalam transaksi database.
 3. **Race handling**: Jika dua request identik tiba bersamaan dan keduanya melewati fast path, yang kalah akan mendapat error unique constraint violation. Request yang kalah akan rollback dan melakukan retry lookup ke tabel idempotency untuk mendapatkan response dari pemenang.
 
 **Alasan**: `INSERT ... ON CONFLICT` pada level database menjamin atomisitas yang tidak bisa dicapai oleh lock di level aplikasi saja.
 
-### 6. Append-Only Ledger dengan Reversal
+### 6. Autentikasi JWT & Otorisasi Berbasis Claims Payload
+- **Enkripsi Password**: Password di-hash menggunakan algoritma `bcrypt` pada saat registrasi dan login.
+- **Payload JWT**: Token JWT menyimpan `user_id` di dalam payload claims.
+- **Pembersihan URL Params**: Seluruh protected endpoint (`/api/v1/users/me`, `/api/v1/wallets`, `/api/v1/wallets/topup`, `/api/v1/wallets/mutations`, `/api/v1/transfers`) secara eksplisit mengekstrak `user_id` dari JWT token. User tidak dapat melakukan manipulasi atau melihat data wallet milik user lain.
 
-Entri ledger **tidak pernah dihapus atau dimodifikasi**. Pembatalan transaksi dilakukan dengan membuat **entri lawan** (reversal), bukan menghapus catatan lama. Ini menjaga integritas audit trail.
+### 7. Validasi Request (`go-playground/validator`)
+Validasi input request dipisahkan secara tegas di layer HTTP/handler menggunakan library `go-playground/validator/v10` melalui adapter `CustomValidator` pada Echo (`e.Validator`). Layer `service` sepenuhnya bersih dari logika validasi struktur request dan berfokus pada aturan bisnis domain.
 
-Setiap entri ledger juga menyimpan `balance_after` sebagai snapshot saldo setelah entri tersebut, memungkinkan pembacaan cepat tanpa menghitung ulang dari awal.
-
-### 7. Struktur Kode
-
-Menggunakan arsitektur berlapis yang umum di Go:
-- **Domain**: Entitas dan DTO murni (tanpa dependensi infrastruktur)
-- **Repository**: Akses data (SQL queries, lock management)
-- **Service**: Logika bisnis (validasi, orkestrasi transaksi)
-- **Handler**: Penanganan HTTP (parsing request, formatting response)
-
-**Alasan**: Pemisahan ini memudahkan testing (repository bisa di-mock untuk unit test) dan membuat kode lebih mudah dipahami.
+### 8. Structured Logging (`zerolog`)
+Seluruh sistem logging dikonfigurasi menggunakan `rs/zerolog` untuk structured logging yang cepat, efisien, dan mendukung format JSON di lingkungan produksi serta format konsol berwarna di lingkungan pengembangan.
 
 ---
 
@@ -139,16 +183,16 @@ Menggunakan arsitektur berlapis yang umum di Go:
 |---|---|---|---|
 | `POST` | `/api/v1/users` | Publik | Daftar user baru (username, email, password; mengembalikan JWT token) |
 | `POST` | `/api/v1/auth/login` | Publik | Login user (email, password; mengembalikan JWT token) |
-| `GET` | `/api/v1/users/me` | Protected | Lihat detail user (berdasarkan user_id dari token JWT) |
+| `GET` | `/api/v1/users/me` | Protected | Lihat detail user terautentikasi (berdasarkan JWT token) |
 
 ### Wallet & Transfer
 
 | Method | Path | Akses | Deskripsi |
 |---|---|---|---|
-| `GET` | `/api/v1/wallets` | Protected | Lihat saldo wallet (berdasarkan user_id dari token JWT) |
-| `POST` | `/api/v1/wallets/topup` | Protected | Top-up saldo (berdasarkan user_id dari token JWT) |
-| `GET` | `/api/v1/wallets/mutations` | Protected | Lihat mutasi ledger (berdasarkan user_id dari token JWT) |
-| `POST` | `/api/v1/transfers` | Protected | Transfer saldo ke `to_user_id` (pengirim dari token JWT) |
+| `GET` | `/api/v1/wallets` | Protected | Lihat saldo wallet terautentikasi (berdasarkan JWT token) |
+| `POST` | `/api/v1/wallets/topup` | Protected | Top-up saldo wallet terautentikasi (berdasarkan JWT token) |
+| `GET` | `/api/v1/wallets/mutations` | Protected | Lihat mutasi ledger terautentikasi (berdasarkan JWT token) |
+| `POST` | `/api/v1/transfers` | Protected | Transfer saldo ke `to_user_id` (pengirim diset dari JWT token) |
 | `POST` | `/api/v1/transfers/:id/reverse` | Protected | Batalkan transaksi (reversal) |
 
 ### Sistem
@@ -156,19 +200,10 @@ Menggunakan arsitektur berlapis yang umum di Go:
 | Method | Path | Akses | Deskripsi |
 |---|---|---|---|
 | `GET` | `/health` | Publik | Health check |
-| `GET` | `/swagger/index.html` | Publik | Dokumentasi OpenAPI / Swagger UI |
+| `GET` | `/swagger/index.html` | Publik | Dokumentasi Interactive OpenAPI / Swagger UI |
 | `POST` | `/api/v1/reconciliation` | Publik | Jalankan pemeriksaan konsistensi |
 
-### Header Wajib
-
-1. **Autentikasi (Protected Endpoints)**:
-```
-Authorization: Bearer <jwt-token>
-```
-2. **Mutasi Saldo (TopUp, Transfer, Reverse)**:
-```
-Idempotency-Key: <string unik>
-```
+---
 
 ### Contoh Penggunaan (curl)
 
@@ -199,7 +234,7 @@ curl -s -X POST http://localhost:8080/api/v1/wallets/topup \
   -H "Idempotency-Key: topup-001" \
   -d '{"amount":100000}'
 
-# 5. Transfer Alice -> Bob (FromUserID diambil otomatis dari payload JWT Alice)
+# 5. Transfer Alice -> Bob (Pengirim otomatis diset dari payload JWT Alice)
 curl -s -X POST http://localhost:8080/api/v1/transfers \
   -H "Authorization: Bearer $ALICE_TOKEN" \
   -H "Content-Type: application/json" \
@@ -217,57 +252,27 @@ curl -s http://localhost:8080/api/v1/wallets \
 
 ---
 
-## Tes Otomatis
+## Batasan yang Disadari & Trade-offs (Alasan & Rationale)
 
-### Unit Tests
-- Validasi tipe error dan HTTP status code
-- Verifikasi pesan error yang deskriptif
+1. **Migrasi Database Inline SQL saat Startup**
+   - *Alasan*: Menjalankan file SQL migrasi `001_init.sql` secara otomatis saat server berjalan menyederhanakan *deployment* dan *testing* (*zero external migration CLI dependency*). Aplikasi/container dapat langsung dijalankan tanpa perlu memasang CLI terpisah.
+   - *Rekomendasi Production*: Pada skala *enterprise*, disarankan menggunakan *migration tool* berversi terpisah seperti `golang-migrate` atau `goose` agar eksekusi migrasi decoupled dari startup server HTTP.
 
-### Integration Tests
-| Test | Apa yang Diuji |
-|---|---|
-| `TestTopUp_Success` | Top-up menambah saldo dan membuat ledger entry |
-| `TestTopUp_Idempotency` | Key yang sama tidak mengeksekusi dua kali |
-| `TestTransfer_Success` | Transfer atomik (kedua wallet terupdate) |
-| `TestTransfer_InsufficientBalance` | Transfer gagal jika saldo kurang |
-| `TestTransfer_SelfTransfer` | Transfer ke diri sendiri ditolak |
-| `TestTransfer_InvalidAmount` | Nominal nol/negatif ditolak |
-| `TestTransfer_WalletNotFound` | Wallet tidak ditemukan → error jelas |
-| `TestReversal_TopUp` | Reversal top-up mengembalikan saldo |
-| `TestReversal_Transfer` | Reversal transfer mengembalikan kedua wallet |
-| `TestReversal_AlreadyReversed` | Reversal ganda ditolak |
-| `TestMutations_PaginationAndDateFilter` | Paginasi dan filter tanggal berfungsi |
-| `TestReconciliation_BalanceMatchesMutations` | Saldo = jumlah seluruh entri ledger |
-| `TestDoubleEntry_LedgerBalances` | Setiap transaksi memiliki debit & kredit seimbang |
+2. **Akun Virtual `SYSTEM` untuk Top-Up**
+   - *Alasan*: Menggunakan akun virtual `00000000-0000-0000-0000-000000000000` sebagai *counter-party* debit saat transaksi *top-up* untuk memenuhi prinsip akuntansi berpasangan (*double-entry bookkeeping*). Akun ini bertindak sebagai entitas virtual penerbit saldo.
+   - *Rekomendasi Production*: Dalam sistem perbankan/e-wallet riil, entri debit top-up dihubungkan ke *settlement/nostro account* bank mitra dengan proses rekonsiliasi kas fisik.
 
-### Concurrent Tests
-| Test | Apa yang Diuji |
-|---|---|
-| `TestConcurrent_TransfersNoNegativeBalance` | 20 transfer bersamaan: tepat 10 berhasil, saldo ≥ 0 |
-| `TestConcurrent_IdempotentTransfers` | 10 request identik: hanya 1 transaksi terjadi |
-| `TestConcurrent_BidirectionalTransfers` | Transfer dua arah bersamaan: total uang konservatif |
+3. **Pembersihan Idempotency Key Expired (24 Jam)**
+   - *Alasan*: Pengecekan idempotensi dilakukan secara langsung pada tabel database `idempotency_keys` berdasarkan *UNIQUE constraint* dan waktu pembuatan untuk menjamin atomisitas tanpa menambah dependensi memori tambahan.
+   - *Rekomendasi Production*: Ditambahkan *cron job* / `pg_cron` atau *background cleanup worker* (atau menggunakan Redis TTL) untuk secara berkala menghapus baris kunci yang sudah melewati batas 24 jam agar ukuran tabel tetap efisien.
 
----
+4. **Cakupan Multi-Currency**
+   - *Alasan*: Skema tabel `wallets` sudah menyediakan kolom `currency` (default `'IDR'`) untuk memfasilitasi pengembangan *multi-currency* (*future-proofing*).
+   - *Rekomendasi Production*: Dalam scope studi kasus ini, transaksi dibatasi pada mata uang seragam (IDR) untuk menghindari kompleksitas konversi kurs valas (*exchange rate floating*).
 
-## Batasan yang Disadari
-
-1. **Migrasi database** dijalankan via file SQL langsung saat startup. Untuk production, sebaiknya gunakan tool migrasi seperti `golang-migrate` atau `goose` dengan versioning yang lebih baik.
-
-2. **Akun SYSTEM** untuk top-up memiliki saldo nominal 0. Dalam production seharusnya ada mekanisme terpisah untuk tracking source of funds.
-
-3. **Idempotency key expiry** (24 jam) diberlakukan di level SQL tapi belum ada job scheduler untuk membersihkan key yang sudah expired.
-
-4. **Multi-currency**: Field `currency` sudah ada di tabel `wallets`, tapi validasi bahwa transfer hanya terjadi antara wallet dengan currency yang sama belum diimplementasi.
-
-5. **Rate limiting**: Belum ada pembatasan rate. Dalam production, diperlukan untuk mencegah abuse.
-
-### 7. Validasi Request (`go-playground/validator`)
-
-Validasi input request dipisahkan secara tegas di layer HTTP/handler menggunakan library `go-playground/validator/v10` melalui adapter `CustomValidator` pada Echo (`e.Validator`). Layer `service` sepenuhnya bersih dari logika validasi struktur request dan berfokus pada aturan bisnis domain.
-
-### 8. Structured Logging (`zerolog`)
-
-Seluruh sistem logging dikonfigurasi menggunakan `rs/zerolog` untuk structured logging yang cepat, efisien, dan mendukung format JSON di lingkungan produksi serta format konsol berwarna di lingkungan pengembangan.
+5. **Cakupan Rate Limiting**
+   - *Alasan*: Fokus utama pengerjaan difokuskan pada integritas data, atomisitas pembukuan ledger, *pessimistic locking*, dan jaminan *race-condition safety* yang diuji intensif pada *concurrency test*.
+   - *Rekomendasi Production*: Penerapan middleware *Rate Limiting* (misal token bucket via Redis/API Gateway) disarankan untuk mencegah ancaman DoS / brute-force.
 
 ---
 
@@ -285,7 +290,10 @@ Seluruh sistem logging dikonfigurasi menggunakan `rs/zerolog` untuk structured l
 | Rekonsiliasi saldo dari mutasi + tes | Nice to Have | ✅ |
 | Pessimistic locking dengan urutan konsisten | Nice to Have | ✅ |
 | Tes transfer bersamaan (no negatif/duplikat) | Nice to Have | ✅ |
-| Validasi awal dengan pesan jelas | Nice to Have | ✅ |
+| Validasi awal dengan pesan jelas (`go-playground/validator`) | Nice to Have | ✅ |
+| Autentikasi JWT & Otorisasi Berbasis Claims Payload | Nice to Have | ✅ |
+| Interactive OpenAPI / Swagger UI (`/swagger/index.html`) | Nice to Have | ✅ |
+| Multi-stage Dockerfile & Containerization (`docker compose`) | Nice to Have | ✅ |
 | Idempotency tahan balapan (UNIQUE constraint) | Enhancement | ✅ |
 | Reversal sebagai entri lawan | Enhancement | ✅ |
 | Ledger append-only dengan snapshot saldo | Enhancement | ✅ |
