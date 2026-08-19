@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"test-teknis/internal/domain"
-	appErrors "test-teknis/internal/errors"
+	"github.com/haiser1/wallet-app/internal/domain"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
 )
 
 // UserRepository handles data access for users.

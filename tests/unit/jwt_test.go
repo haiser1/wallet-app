@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"test-teknis/internal/auth"
-	"test-teknis/internal/middleware"
+	"github.com/haiser1/wallet-app/internal/auth"
+	"github.com/haiser1/wallet-app/internal/middleware"
 )
 
 func TestJWT_GenerateAndParseToken(t *testing.T) {

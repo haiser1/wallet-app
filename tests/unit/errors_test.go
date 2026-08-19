@@ -3,7 +3,7 @@ package unit
 import (
 	"testing"
 
-	appErrors "test-teknis/internal/errors"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
 )
 
 // TestAppError_IsAppError verifies error type detection.

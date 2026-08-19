@@ -10,10 +10,10 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 
-	"test-teknis/internal/database"
-	"test-teknis/internal/domain"
-	"test-teknis/internal/repository"
-	"test-teknis/internal/service"
+	"github.com/haiser1/wallet-app/internal/database"
+	"github.com/haiser1/wallet-app/internal/domain"
+	"github.com/haiser1/wallet-app/internal/repository"
+	"github.com/haiser1/wallet-app/internal/service"
 )
 
 var (

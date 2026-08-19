@@ -3,9 +3,9 @@ package unit
 import (
 	"testing"
 
-	"test-teknis/internal/domain"
-	appErrors "test-teknis/internal/errors"
-	appValidator "test-teknis/internal/validator"
+	"github.com/haiser1/wallet-app/internal/domain"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
+	appValidator "github.com/haiser1/wallet-app/internal/validator"
 )
 
 func TestCustomValidator_CreateUserRequest(t *testing.T) {

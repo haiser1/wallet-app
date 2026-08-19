@@ -7,8 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 
-	"test-teknis/internal/auth"
-	appErrors "test-teknis/internal/errors"
+	"github.com/haiser1/wallet-app/internal/auth"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
 )
 
 // RespondError maps domain errors to HTTP responses with structured error bodies.

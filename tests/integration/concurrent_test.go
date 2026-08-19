@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"test-teknis/internal/domain"
+	"github.com/haiser1/wallet-app/internal/domain"
 )
 
 // TestConcurrent_TransfersNoNegativeBalance runs multiple concurrent transfers

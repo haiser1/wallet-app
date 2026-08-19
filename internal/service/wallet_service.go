@@ -11,9 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 
-	"test-teknis/internal/domain"
-	appErrors "test-teknis/internal/errors"
-	"test-teknis/internal/repository"
+	"github.com/haiser1/wallet-app/internal/domain"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
+	"github.com/haiser1/wallet-app/internal/repository"
 )
 
 // WalletService handles wallet-related business logic including

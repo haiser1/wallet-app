@@ -12,14 +12,14 @@ import (
 	"github.com/rs/zerolog/log"
 	echoSwagger "github.com/swaggo/echo-swagger"
 
-	_ "test-teknis/docs"
-	"test-teknis/internal/config"
-	"test-teknis/internal/database"
-	"test-teknis/internal/handler"
-	appMiddleware "test-teknis/internal/middleware"
-	"test-teknis/internal/repository"
-	"test-teknis/internal/service"
-	appValidator "test-teknis/internal/validator"
+	_ "github.com/haiser1/wallet-app/docs"
+	"github.com/haiser1/wallet-app/internal/config"
+	"github.com/haiser1/wallet-app/internal/database"
+	"github.com/haiser1/wallet-app/internal/handler"
+	appMiddleware "github.com/haiser1/wallet-app/internal/middleware"
+	"github.com/haiser1/wallet-app/internal/repository"
+	"github.com/haiser1/wallet-app/internal/service"
+	appValidator "github.com/haiser1/wallet-app/internal/validator"
 )
 
 // @title Wallet & Transaction API

@@ -7,10 +7,10 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"test-teknis/internal/domain"
-	appErrors "test-teknis/internal/errors"
-	"test-teknis/internal/middleware"
-	"test-teknis/internal/service"
+	"github.com/haiser1/wallet-app/internal/domain"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
+	"github.com/haiser1/wallet-app/internal/middleware"
+	"github.com/haiser1/wallet-app/internal/service"
 )
 
 // WalletHandler handles HTTP requests for wallet operations.

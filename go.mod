@@ -1,4 +1,4 @@
-module test-teknis
+module github.com/haiser1/wallet-app
 
 go 1.25.0
 

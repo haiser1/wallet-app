@@ -6,10 +6,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"test-teknis/internal/auth"
-	"test-teknis/internal/domain"
-	appErrors "test-teknis/internal/errors"
-	"test-teknis/internal/repository"
+	"github.com/haiser1/wallet-app/internal/auth"
+	"github.com/haiser1/wallet-app/internal/domain"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
+	"github.com/haiser1/wallet-app/internal/repository"
 )
 
 // UserService handles user-related business logic.

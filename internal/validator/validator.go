@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
-	appErrors "test-teknis/internal/errors"
+	appErrors "github.com/haiser1/wallet-app/internal/errors"
 )
 
 // CustomValidator wraps go-playground/validator/v10 for Echo request validation.
