@@ -20,13 +20,7 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
-// RegisterRoutes registers user-related routes on the Echo group.
-func (h *UserHandler) RegisterRoutes(g *echo.Group) {
-	g.POST("", h.CreateUser)
-	g.GET("/:id", h.GetUser)
-}
-
-// CreateUser handles POST /api/v1/users
+// CreateUser handles POST /api/v1/users (Public)
 func (h *UserHandler) CreateUser(c echo.Context) error {
 	var req domain.CreateUserRequest
 	if err := c.Bind(&req); err != nil {
@@ -37,21 +31,51 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		return respondError(c, err)
 	}
 
-	user, err := h.userService.CreateUser(c.Request().Context(), req)
+	authResp, err := h.userService.CreateUser(c.Request().Context(), req)
 	if err != nil {
 		return respondError(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"data": user,
+		"data": authResp,
 	})
 }
 
-// GetUser handles GET /api/v1/users/:id
+// Login handles POST /api/v1/auth/login (Public)
+func (h *UserHandler) Login(c echo.Context) error {
+	var req domain.LoginRequest
+	if err := c.Bind(&req); err != nil {
+		return respondError(c, appErrors.NewValidationError("invalid request body"))
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, err)
+	}
+
+	authResp, err := h.userService.Login(c.Request().Context(), req)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"data": authResp,
+	})
+}
+
+// GetUser handles GET /api/v1/users/:id (Protected - user can only view their own user data)
 func (h *UserHandler) GetUser(c echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
 		return respondError(c, appErrors.NewValidationError("user id is required"))
+	}
+
+	authUserID, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	if authUserID != id {
+		return respondError(c, appErrors.ErrForbidden)
 	}
 
 	user, err := h.userService.GetUser(c.Request().Context(), id)

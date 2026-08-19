@@ -1,5 +1,19 @@
 .PHONY: run test test-unit test-integration docker-up docker-down migrate
 
+# help
+help:
+	@echo "Usage: make <command>"
+	@echo ""
+	@echo "Commands:"
+	@echo "  run                Start the application"
+	@echo "  test               Run all tests"
+	@echo "  test-unit          Run unit tests only"
+	@echo "  test-integration   Run integration tests only"
+	@echo "  docker-up          Start PostgreSQL container"
+	@echo "  docker-down        Stop PostgreSQL container"
+	@echo "  docker-reset       Reset PostgreSQL container"
+	@echo "  migrate            Run database migrations"
+
 # Start the application
 run:
 	go run cmd/server/main.go

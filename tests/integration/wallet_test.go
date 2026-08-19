@@ -16,13 +16,10 @@ func TestTopUp_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	user, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "topup_user",
 		Email:    "topup@test.com",
 	})
-	if err != nil {
-		t.Fatalf("create user: %v", err)
-	}
 
 	// Top-up
 	resp, err := testWalletService.TopUp(ctx, user.ID, domain.TopUpRequest{
@@ -56,13 +53,10 @@ func TestTopUp_Idempotency(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "idemp_user",
 		Email:    "idemp@test.com",
 	})
-	if err != nil {
-		t.Fatalf("create user: %v", err)
-	}
 
 	key := "topup-idemp-001"
 
@@ -105,25 +99,17 @@ func TestTransfer_Success(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	// Create two users
-	alice, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "alice",
 		Email:    "alice@test.com",
 	})
-	if err != nil {
-		t.Fatalf("create alice: %v", err)
-	}
-
-	bob, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bob",
 		Email:    "bob@test.com",
 	})
-	if err != nil {
-		t.Fatalf("create bob: %v", err)
-	}
 
 	// Top-up Alice
-	_, err = testWalletService.TopUp(ctx, alice.ID, domain.TopUpRequest{
+	_, err := testWalletService.TopUp(ctx, alice.ID, domain.TopUpRequest{
 		Amount:         200000,
 		IdempotencyKey: "alice-topup-001",
 	})
@@ -166,11 +152,11 @@ func TestTransfer_InsufficientBalance(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "alice",
 		Email:    "alice@test.com",
 	})
-	bob, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bob",
 		Email:    "bob@test.com",
 	})
@@ -193,10 +179,9 @@ func TestTransfer_InsufficientBalance(t *testing.T) {
 // TestTransfer_SelfTransfer verifies that self-transfer is rejected.
 func TestTransfer_SelfTransfer(t *testing.T) {
 	cleanupTestData(t)
-	ctx := context.Background()
 	v := appValidator.NewCustomValidator()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "self_user",
 		Email:    "self@test.com",
 	})
@@ -219,14 +204,13 @@ func TestTransfer_SelfTransfer(t *testing.T) {
 // TestTransfer_InvalidAmount verifies that zero and negative amounts are rejected.
 func TestTransfer_InvalidAmount(t *testing.T) {
 	cleanupTestData(t)
-	ctx := context.Background()
 	v := appValidator.NewCustomValidator()
 
-	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "alice",
 		Email:    "alice@test.com",
 	})
-	bob, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bob",
 		Email:    "bob@test.com",
 	})
@@ -263,7 +247,7 @@ func TestTransfer_WalletNotFound(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "user_exists",
 		Email:    "exists@test.com",
 	})
@@ -288,7 +272,7 @@ func TestReversal_TopUp(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "reversal_user",
 		Email:    "reversal@test.com",
 	})
@@ -327,11 +311,11 @@ func TestReversal_Transfer(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "alice",
 		Email:    "alice@test.com",
 	})
-	bob, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bob",
 		Email:    "bob@test.com",
 	})
@@ -376,7 +360,7 @@ func TestReversal_AlreadyReversed(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "double_rev",
 		Email:    "double_rev@test.com",
 	})
@@ -408,7 +392,7 @@ func TestMutations_PaginationAndDateFilter(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "mutation_user",
 		Email:    "mutation@test.com",
 	})
@@ -462,11 +446,11 @@ func TestReconciliation_BalanceMatchesMutations(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "alice",
 		Email:    "alice@test.com",
 	})
-	bob, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bob",
 		Email:    "bob@test.com",
 	})
@@ -510,7 +494,7 @@ func TestDoubleEntry_LedgerBalances(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "ledger_user",
 		Email:    "ledger@test.com",
 	})

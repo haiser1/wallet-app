@@ -133,38 +133,38 @@ Menggunakan arsitektur berlapis yang umum di Go:
 
 ## API Endpoints
 
-### User
+### Auth & User
 
-| Method | Path | Deskripsi |
-|---|---|---|
-| `POST` | `/api/v1/users` | Daftar user baru (otomatis buat wallet) |
-| `GET` | `/api/v1/users/:id` | Lihat detail user |
+| Method | Path | Akses | Deskripsi |
+|---|---|---|---|
+| `POST` | `/api/v1/users` | Publik | Daftar user baru (mengembalikan JWT token) |
+| `POST` | `/api/v1/auth/login` | Publik | Login user (mengembalikan JWT token) |
+| `GET` | `/api/v1/users/:id` | Protected | Lihat detail user (hanya akun milik sendiri) |
 
-### Wallet
+### Wallet & Transfer
 
-| Method | Path | Deskripsi |
-|---|---|---|
-| `GET` | `/api/v1/wallets/:userId` | Lihat saldo wallet |
-| `POST` | `/api/v1/wallets/:userId/topup` | Top-up saldo |
-| `GET` | `/api/v1/wallets/:userId/mutations` | Lihat mutasi (paginasi + filter tanggal) |
-
-### Transfer
-
-| Method | Path | Deskripsi |
-|---|---|---|
-| `POST` | `/api/v1/transfers` | Transfer saldo antar user |
-| `POST` | `/api/v1/transfers/:id/reverse` | Batalkan transaksi (reversal) |
+| Method | Path | Akses | Deskripsi |
+|---|---|---|---|
+| `GET` | `/api/v1/wallets/:userId` | Protected | Lihat saldo wallet (hanya milik sendiri) |
+| `POST` | `/api/v1/wallets/:userId/topup` | Protected | Top-up saldo (hanya ke wallet sendiri) |
+| `GET` | `/api/v1/wallets/:userId/mutations` | Protected | Lihat mutasi (hanya milik sendiri) |
+| `POST` | `/api/v1/transfers` | Protected | Transfer saldo (pengirim wajib akun sendiri) |
+| `POST` | `/api/v1/transfers/:id/reverse` | Protected | Batalkan transaksi (reversal) |
 
 ### Sistem
 
-| Method | Path | Deskripsi |
-|---|---|---|
-| `GET` | `/health` | Health check |
-| `POST` | `/api/v1/reconciliation` | Jalankan pemeriksaan konsistensi |
+| Method | Path | Akses | Deskripsi |
+|---|---|---|---|
+| `GET` | `/health` | Publik | Health check |
+| `POST` | `/api/v1/reconciliation` | Publik | Jalankan pemeriksaan konsistensi |
 
 ### Header Wajib
 
-Semua operasi mutasi memerlukan header:
+1. **Autentikasi (Protected Endpoints)**:
+```
+Authorization: Bearer <jwt-token>
+```
+2. **Mutasi Saldo (TopUp, Transfer, Reverse)**:
 ```
 Idempotency-Key: <string unik>
 ```
@@ -172,40 +172,37 @@ Idempotency-Key: <string unik>
 ### Contoh Penggunaan (curl)
 
 ```bash
-# 1. Buat user
-curl -s -X POST http://localhost:8080/api/v1/users \
+# 1. Buat user Alice (response berisi JWT token)
+ALICE_RESP=$(curl -s -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","email":"alice@example.com"}'
+  -d '{"username":"alice","email":"alice@example.com"}')
+ALICE_TOKEN=$(echo $ALICE_RESP | jq -r '.data.token')
+ALICE_ID=$(echo $ALICE_RESP | jq -r '.data.user.id')
 
-# 2. Buat user kedua
-curl -s -X POST http://localhost:8080/api/v1/users \
+# 2. Login Bob (jika sudah terdaftar)
+BOB_RESP=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"bob","email":"bob@example.com"}'
+  -d '{"username":"bob"}')
+BOB_TOKEN=$(echo $BOB_RESP | jq -r '.data.token')
+BOB_ID=$(echo $BOB_RESP | jq -r '.data.user.id')
 
-# 3. Top-up (ganti <alice-id> dengan ID dari response)
-curl -s -X POST http://localhost:8080/api/v1/wallets/<alice-id>/topup \
+# 3. Top-up Alice (menggunakan Bearer Token Alice)
+curl -s -X POST http://localhost:8080/api/v1/wallets/$ALICE_ID/topup \
+  -H "Authorization: Bearer $ALICE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: topup-001" \
   -d '{"amount":100000}'
 
-# 4. Transfer
+# 4. Transfer Alice -> Bob (FromUserID harus sesuai dengan JWT Alice)
 curl -s -X POST http://localhost:8080/api/v1/transfers \
+  -H "Authorization: Bearer $ALICE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: transfer-001" \
-  -d '{"from_user_id":"<alice-id>","to_user_id":"<bob-id>","amount":50000}'
+  -d "{\"from_user_id\":\"$ALICE_ID\",\"to_user_id\":\"$BOB_ID\",\"amount\":50000}"
 
-# 5. Lihat mutasi dengan paginasi dan filter tanggal
-curl -s "http://localhost:8080/api/v1/wallets/<alice-id>/mutations?page=1&per_page=10&start_date=2026-01-01&end_date=2026-12-31"
-
-# 6. Lihat saldo
-curl -s http://localhost:8080/api/v1/wallets/<alice-id>
-
-# 7. Reversal (ganti <txn-id> dengan transaction ID)
-curl -s -X POST http://localhost:8080/api/v1/transfers/<txn-id>/reverse \
-  -H "Idempotency-Key: reverse-001"
-
-# 8. Rekonsiliasi
-curl -s -X POST http://localhost:8080/api/v1/reconciliation
+# 5. Percobaan akses ilegal (Mencoba melihat saldo Bob menggunakan Token Alice -> 403 Forbidden)
+curl -s http://localhost:8080/api/v1/wallets/$BOB_ID \
+  -H "Authorization: Bearer $ALICE_TOKEN"
 ```
 
 ---

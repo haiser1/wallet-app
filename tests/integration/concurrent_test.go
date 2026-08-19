@@ -18,24 +18,17 @@ func TestConcurrent_TransfersNoNegativeBalance(t *testing.T) {
 	ctx := context.Background()
 
 	// Create sender and receiver
-	sender, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	sender := createTestUser(t, domain.CreateUserRequest{
 		Username: "concurrent_sender",
 		Email:    "sender@concurrent.com",
 	})
-	if err != nil {
-		t.Fatalf("create sender: %v", err)
-	}
-
-	receiver, err := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	receiver := createTestUser(t, domain.CreateUserRequest{
 		Username: "concurrent_receiver",
 		Email:    "receiver@concurrent.com",
 	})
-	if err != nil {
-		t.Fatalf("create receiver: %v", err)
-	}
 
 	// Top-up sender with 100,000
-	_, err = testWalletService.TopUp(ctx, sender.ID, domain.TopUpRequest{
+	_, err := testWalletService.TopUp(ctx, sender.ID, domain.TopUpRequest{
 		Amount:         100000,
 		IdempotencyKey: "concurrent-topup",
 	})
@@ -121,11 +114,11 @@ func TestConcurrent_IdempotentTransfers(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	sender, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	sender := createTestUser(t, domain.CreateUserRequest{
 		Username: "idemp_sender",
 		Email:    "idemp_sender@test.com",
 	})
-	receiver, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	receiver := createTestUser(t, domain.CreateUserRequest{
 		Username: "idemp_receiver",
 		Email:    "idemp_receiver@test.com",
 	})
@@ -192,11 +185,11 @@ func TestConcurrent_BidirectionalTransfers(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
 
-	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	alice := createTestUser(t, domain.CreateUserRequest{
 		Username: "bidir_alice",
 		Email:    "bidir_alice@test.com",
 	})
-	bob, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
+	bob := createTestUser(t, domain.CreateUserRequest{
 		Username: "bidir_bob",
 		Email:    "bidir_bob@test.com",
 	})

@@ -23,15 +23,14 @@ func NewWalletHandler(walletService *service.WalletService) *WalletHandler {
 }
 
 // RegisterRoutes registers wallet-related routes on the Echo instance.
-func (h *WalletHandler) RegisterRoutes(e *echo.Echo) {
-	wallets := e.Group("/api/v1/wallets")
-	wallets.GET("/:userId", h.GetBalance)
-	wallets.POST("/:userId/topup", h.TopUp)
-	wallets.GET("/:userId/mutations", h.GetMutations)
+func (h *WalletHandler) RegisterRoutes(e *echo.Echo, protectedGroup *echo.Group) {
+	// Protected endpoints (require JWT auth & ownership validation)
+	protectedGroup.GET("/wallets/:userId", h.GetBalance)
+	protectedGroup.POST("/wallets/:userId/topup", h.TopUp)
+	protectedGroup.GET("/wallets/:userId/mutations", h.GetMutations)
 
-	transfers := e.Group("/api/v1/transfers")
-	transfers.POST("", h.Transfer)
-	transfers.POST("/:id/reverse", h.ReverseTransaction)
+	protectedGroup.POST("/transfers", h.Transfer)
+	protectedGroup.POST("/transfers/:id/reverse", h.ReverseTransaction)
 
 	e.POST("/api/v1/reconciliation", h.Reconcile)
 }
@@ -44,6 +43,15 @@ func (h *WalletHandler) GetBalance(c echo.Context) error {
 	}
 	if userID == domain.SystemWalletID {
 		return respondError(c, appErrors.ErrSystemWallet)
+	}
+
+	authUserID, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	if authUserID != userID {
+		return respondError(c, appErrors.ErrForbidden)
 	}
 
 	resp, err := h.walletService.GetBalance(c.Request().Context(), userID)
@@ -64,6 +72,15 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 	}
 	if userID == domain.SystemWalletID {
 		return respondError(c, appErrors.ErrSystemWallet)
+	}
+
+	authUserID, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	if authUserID != userID {
+		return respondError(c, appErrors.ErrForbidden)
 	}
 
 	var req domain.TopUpRequest
@@ -89,6 +106,11 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 
 // Transfer handles POST /api/v1/transfers
 func (h *WalletHandler) Transfer(c echo.Context) error {
+	authUserID, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
+	}
+
 	var req domain.TransferRequest
 	if err := c.Bind(&req); err != nil {
 		return respondError(c, appErrors.NewValidationError("invalid request body"))
@@ -98,6 +120,11 @@ func (h *WalletHandler) Transfer(c echo.Context) error {
 
 	if err := c.Validate(&req); err != nil {
 		return respondError(c, err)
+	}
+
+	// Ownership check: Sender MUST be the authenticated user!
+	if req.FromUserID != authUserID {
+		return respondError(c, appErrors.ErrForbidden)
 	}
 
 	resp, err := h.walletService.Transfer(c.Request().Context(), req)
@@ -115,6 +142,11 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 	txnID := c.Param("id")
 	if txnID == "" {
 		return respondError(c, appErrors.NewValidationError("transaction id is required"))
+	}
+
+	_, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
 	}
 
 	var req domain.ReverseRequest
@@ -142,6 +174,15 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 	}
 	if userID == domain.SystemWalletID {
 		return respondError(c, appErrors.ErrSystemWallet)
+	}
+
+	authUserID, err := GetAuthenticatedUserID(c)
+	if err != nil {
+		return respondError(c, err)
+	}
+
+	if authUserID != userID {
+		return respondError(c, appErrors.ErrForbidden)
 	}
 
 	query := domain.MutationQuery{}

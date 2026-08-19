@@ -15,3 +15,14 @@ type CreateUserRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=100"`
 	Email    string `json:"email" validate:"required,email,max=255"`
 }
+
+// LoginRequest is the input for user authentication.
+type LoginRequest struct {
+	Username string `json:"username" validate:"required"`
+}
+
+// AuthResponse is returned on successful login or registration.
+type AuthResponse struct {
+	Token string `json:"token"`
+	User  *User  `json:"user"`
+}

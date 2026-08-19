@@ -14,6 +14,7 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	ServerPort string
+	JWTSecret  string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -26,6 +27,7 @@ func Load() *Config {
 		DBName:     getEnv("DB_NAME", "wallet_db"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		ServerPort: getEnv("SERVER_PORT", "8080"),
+		JWTSecret:  getEnv("JWT_SECRET", "default-wallet-secret-key-change-in-prod"),
 	}
 }
 

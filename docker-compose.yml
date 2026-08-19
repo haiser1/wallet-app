@@ -12,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./internal/database/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wallet_user -d wallet_db"]
+      test: [ "CMD-SHELL", "pg_isready -U wallet_user -d wallet_db" ]
       interval: 5s
       timeout: 5s
       retries: 5

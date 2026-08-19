@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"test-teknis/internal/database"
+	"test-teknis/internal/domain"
 	"test-teknis/internal/repository"
 	"test-teknis/internal/service"
 )
@@ -60,10 +61,20 @@ func TestMain(m *testing.M) {
 	testTxnRepo = repository.NewTransactionRepository(testPool)
 	testIdempotencyRepo = repository.NewIdempotencyRepository(testPool)
 
-	testUserService = service.NewUserService(userRepo)
+	testUserService = service.NewUserService(userRepo, "test-jwt-secret")
 	testWalletService = service.NewWalletService(testPool, testWalletRepo, testTxnRepo, testIdempotencyRepo)
 
 	os.Exit(m.Run())
+}
+
+// createTestUser creates a user and returns the domain.User.
+func createTestUser(t *testing.T, req domain.CreateUserRequest) *domain.User {
+	t.Helper()
+	res, err := testUserService.CreateUser(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create test user failed: %v", err)
+	}
+	return res.User
 }
 
 // cleanupTestData removes all test data (except the system user/wallet).

@@ -2,10 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 
+	"test-teknis/internal/auth"
 	appErrors "test-teknis/internal/errors"
 )
 
@@ -42,4 +44,43 @@ func RequestIDMiddleware() echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
+}
+
+// JWTMiddleware validates the Bearer JWT token from the Authorization header and stores user_id in context.
+func JWTMiddleware(secret string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			authHeader := c.Request().Header.Get("Authorization")
+			if authHeader == "" {
+				return respondError(c, appErrors.ErrUnauthorized)
+			}
+
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+				return respondError(c, appErrors.ErrUnauthorized)
+			}
+
+			tokenStr := parts[1]
+			claims, err := auth.ParseToken(tokenStr, secret)
+			if err != nil {
+				return respondError(c, appErrors.ErrUnauthorized)
+			}
+
+			if claims.UserID == "" {
+				return respondError(c, appErrors.ErrUnauthorized)
+			}
+
+			c.Set("user_id", claims.UserID)
+			return next(c)
+		}
+	}
+}
+
+// GetAuthenticatedUserID retrieves the authenticated user_id from context.
+func GetAuthenticatedUserID(c echo.Context) (string, error) {
+	userID, ok := c.Get("user_id").(string)
+	if !ok || userID == "" {
+		return "", appErrors.ErrUnauthorized
+	}
+	return userID, nil
 }

@@ -76,3 +76,19 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, 
 	}
 	return &user, nil
 }
+
+// GetByUsername retrieves a user by their username.
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
+	var user domain.User
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, username, email, created_at FROM users WHERE username = $1`,
+		username,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, appErrors.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("get user by username: %w", err)
+	}
+	return &user, nil
+}

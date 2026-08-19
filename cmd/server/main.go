@@ -53,7 +53,7 @@ func main() {
 	idempotencyRepo := repository.NewIdempotencyRepository(pool)
 
 	// Initialize services
-	userService := service.NewUserService(userRepo)
+	userService := service.NewUserService(userRepo, cfg.JWTSecret)
 	walletService := service.NewWalletService(pool, walletRepo, txnRepo, idempotencyRepo)
 
 	// Initialize handlers
@@ -67,7 +67,7 @@ func main() {
 	// Register Custom Validator (go-playground/validator)
 	e.Validator = appValidator.NewCustomValidator()
 
-	// Middleware
+	// Global Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(handler.RequestIDMiddleware())
@@ -77,10 +77,17 @@ func main() {
 		return c.JSON(200, map[string]string{"status": "ok"})
 	})
 
-	// Register routes
-	userGroup := e.Group("/api/v1/users")
-	userHandler.RegisterRoutes(userGroup)
-	walletHandler.RegisterRoutes(e)
+	// Public auth & user routes
+	api := e.Group("/api/v1")
+	api.POST("/users", userHandler.CreateUser)
+	api.POST("/auth/login", userHandler.Login)
+
+	// Protected routes (require JWT authentication)
+	protected := api.Group("", handler.JWTMiddleware(cfg.JWTSecret))
+	protected.GET("/users/:id", userHandler.GetUser)
+
+	// Wallet & Transfer routes
+	walletHandler.RegisterRoutes(e, protected)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
