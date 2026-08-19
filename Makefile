@@ -1,4 +1,4 @@
-.PHONY: run test test-unit test-integration docker-up docker-down docker-reset docker-build swagger
+.PHONY: run test test-unit test-integration docker-up docker-down docker-reset docker-build docker-logs swagger
 
 # help
 help:
@@ -14,6 +14,7 @@ help:
 	@echo "  docker-down        Stop containers"
 	@echo "  docker-reset       Reset containers and volumes"
 	@echo "  docker-build       Build Docker image for the app"
+	@echo "  docker-logs        Tail container logs for the app"
 
 # Start the application locally
 run:
@@ -54,3 +55,7 @@ docker-reset:
 	docker compose up -d --build
 	@echo "Waiting for services to be ready..."
 	@sleep 3
+
+# Tail logs of app container
+docker-logs:
+	docker compose logs -f app

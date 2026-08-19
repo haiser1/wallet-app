@@ -5,16 +5,16 @@ services:
       dockerfile: Dockerfile
     container_name: wallet-app
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
     environment:
       - SERVER_PORT=8080
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=wallet_user
-      - DB_PASSWORD=wallet_pass
-      - DB_NAME=wallet_db
-      - DB_SSLMODE=disable
-      - JWT_SECRET=supersecretjwtkey123
+      - DB_USER=${DB_USER:-wallet_user}
+      - DB_PASSWORD=${DB_PASSWORD:-wallet_pass}
+      - DB_NAME=${DB_NAME:-wallet_db}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwtkey123}
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,16 +23,16 @@ services:
     image: postgres:16-alpine
     container_name: wallet-postgres
     environment:
-      POSTGRES_USER: wallet_user
-      POSTGRES_PASSWORD: wallet_pass
-      POSTGRES_DB: wallet_db
+      POSTGRES_USER: ${DB_USER:-wallet_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-wallet_pass}
+      POSTGRES_DB: ${DB_NAME:-wallet_db}
     ports:
-      - "5433:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./internal/database/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U wallet_user -d wallet_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-wallet_user} -d ${DB_NAME:-wallet_db}" ]
       interval: 5s
       timeout: 5s
       retries: 5
