@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 
 	"test-teknis/internal/domain"
 	appErrors "test-teknis/internal/errors"
@@ -48,10 +48,6 @@ func isUniqueViolation(err error) bool {
 
 // GetBalance retrieves the current wallet balance for a user.
 func (s *WalletService) GetBalance(ctx context.Context, userID string) (*domain.WalletBalanceResponse, error) {
-	if userID == domain.SystemWalletID {
-		return nil, appErrors.ErrSystemWallet
-	}
-
 	wallet, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -69,17 +65,6 @@ func (s *WalletService) GetBalance(ctx context.Context, userID string) (*domain.
 // Creates a double-entry: credit to user wallet, debit from system wallet.
 // The idempotency key prevents duplicate top-ups.
 func (s *WalletService) TopUp(ctx context.Context, userID string, req domain.TopUpRequest) (*domain.TopUpResponse, error) {
-	// --- Early validation ---
-	if userID == domain.SystemWalletID {
-		return nil, appErrors.ErrSystemWallet
-	}
-	if req.Amount <= 0 {
-		return nil, appErrors.ErrInvalidAmount
-	}
-	if req.IdempotencyKey == "" {
-		return nil, appErrors.ErrIdempotencyKey
-	}
-
 	// --- Check idempotency (fast path, outside transaction) ---
 	existing, err := s.idempotencyRepo.Get(ctx, req.IdempotencyKey)
 	if err != nil {
@@ -206,7 +191,7 @@ func (s *WalletService) getIdempotentTopUpResponse(ctx context.Context, key stri
 		}
 		return &resp, nil
 	}
-	// The winning transaction may not have committed yet; return the balance
+	// The winning transaction may not have committed yet; return error to retry
 	return nil, fmt.Errorf("concurrent idempotency race: please retry")
 }
 
@@ -217,20 +202,6 @@ func (s *WalletService) getIdempotentTopUpResponse(ctx context.Context, key stri
 //
 // Wallets are locked in ascending user ID order to prevent deadlocks.
 func (s *WalletService) Transfer(ctx context.Context, req domain.TransferRequest) (*domain.TransferResponse, error) {
-	// --- Early validation ---
-	if req.Amount <= 0 {
-		return nil, appErrors.ErrInvalidAmount
-	}
-	if req.FromUserID == req.ToUserID {
-		return nil, appErrors.ErrSelfTransfer
-	}
-	if req.FromUserID == domain.SystemWalletID || req.ToUserID == domain.SystemWalletID {
-		return nil, appErrors.ErrSystemWallet
-	}
-	if req.IdempotencyKey == "" {
-		return nil, appErrors.ErrIdempotencyKey
-	}
-
 	// --- Check idempotency (fast path) ---
 	existing, err := s.idempotencyRepo.Get(ctx, req.IdempotencyKey)
 	if err != nil {
@@ -268,7 +239,7 @@ func (s *WalletService) Transfer(ctx context.Context, req domain.TransferRequest
 	fromWallet := wallets[req.FromUserID]
 	toWallet := wallets[req.ToUserID]
 
-	// Check sufficient balance
+	// Check sufficient balance (domain business state check)
 	if fromWallet.Balance < req.Amount {
 		return nil, appErrors.ErrInsufficientBalance
 	}
@@ -383,10 +354,6 @@ func (s *WalletService) getIdempotentTransferResponse(ctx context.Context, key s
 // The original transaction is marked as 'reversed' and counter-entries are created.
 // The original ledger entries are never modified or deleted (append-only).
 func (s *WalletService) Reverse(ctx context.Context, txnID string, req domain.ReverseRequest) (*domain.ReverseResponse, error) {
-	if req.IdempotencyKey == "" {
-		return nil, appErrors.ErrIdempotencyKey
-	}
-
 	// Check idempotency (fast path)
 	existing, err := s.idempotencyRepo.Get(ctx, req.IdempotencyKey)
 	if err != nil {
@@ -406,7 +373,7 @@ func (s *WalletService) Reverse(ctx context.Context, txnID string, req domain.Re
 		return nil, err
 	}
 
-	// Validate reversibility
+	// Validate reversibility (domain status checks)
 	if origTxn.Status == domain.TransactionStatusReversed {
 		return nil, appErrors.ErrAlreadyReversed
 	}
@@ -573,10 +540,6 @@ func (s *WalletService) getIdempotentReverseResponse(ctx context.Context, key st
 
 // GetMutations retrieves paginated ledger entries for a user's wallet.
 func (s *WalletService) GetMutations(ctx context.Context, userID string, query domain.MutationQuery) (*domain.PaginatedMutations, error) {
-	if userID == domain.SystemWalletID {
-		return nil, appErrors.ErrSystemWallet
-	}
-
 	// Get wallet to obtain wallet ID
 	wallet, err := s.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
@@ -614,7 +577,7 @@ func (s *WalletService) Reconcile(ctx context.Context) (*domain.ReconciliationRe
 	for _, wallet := range wallets {
 		computed, err := s.txnRepo.GetComputedBalance(ctx, wallet.ID)
 		if err != nil {
-			log.Printf("reconciliation error for wallet %s: %v", wallet.ID, err)
+			log.Error().Err(err).Str("wallet_id", wallet.ID).Msg("reconciliation error for wallet")
 			continue
 		}
 

@@ -3,12 +3,12 @@ package integration
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog/log"
 
 	"test-teknis/internal/database"
 	"test-teknis/internal/repository"
@@ -41,17 +41,17 @@ func TestMain(m *testing.M) {
 	var err error
 	testPool, err = database.NewPostgresPool(dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to test database: %v", err)
+		log.Fatal().Err(err).Msg("Failed to connect to test database")
 	}
 	defer testPool.Close()
 
 	// Run migrations
 	migrationSQL, err := os.ReadFile("../../internal/database/migrations/001_init.sql")
 	if err != nil {
-		log.Fatalf("Failed to read migration: %v", err)
+		log.Fatal().Err(err).Msg("Failed to read migration")
 	}
 	if err := database.RunMigrations(testPool, string(migrationSQL)); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
 	// Initialize repos and services

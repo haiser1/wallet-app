@@ -42,6 +42,9 @@ func (h *WalletHandler) GetBalance(c echo.Context) error {
 	if userID == "" {
 		return respondError(c, appErrors.NewValidationError("user id is required"))
 	}
+	if userID == domain.SystemWalletID {
+		return respondError(c, appErrors.ErrSystemWallet)
+	}
 
 	resp, err := h.walletService.GetBalance(c.Request().Context(), userID)
 	if err != nil {
@@ -59,6 +62,9 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 	if userID == "" {
 		return respondError(c, appErrors.NewValidationError("user id is required"))
 	}
+	if userID == domain.SystemWalletID {
+		return respondError(c, appErrors.ErrSystemWallet)
+	}
 
 	var req domain.TopUpRequest
 	if err := c.Bind(&req); err != nil {
@@ -66,6 +72,10 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 	}
 
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
+
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, err)
+	}
 
 	resp, err := h.walletService.TopUp(c.Request().Context(), userID, req)
 	if err != nil {
@@ -85,6 +95,10 @@ func (h *WalletHandler) Transfer(c echo.Context) error {
 	}
 
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
+
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, err)
+	}
 
 	resp, err := h.walletService.Transfer(c.Request().Context(), req)
 	if err != nil {
@@ -106,6 +120,10 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 	var req domain.ReverseRequest
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
 
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, err)
+	}
+
 	resp, err := h.walletService.Reverse(c.Request().Context(), txnID, req)
 	if err != nil {
 		return respondError(c, err)
@@ -121,6 +139,9 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
 		return respondError(c, appErrors.NewValidationError("user id is required"))
+	}
+	if userID == domain.SystemWalletID {
+		return respondError(c, appErrors.ErrSystemWallet)
 	}
 
 	query := domain.MutationQuery{}

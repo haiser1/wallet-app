@@ -18,7 +18,7 @@ type Wallet struct {
 // TopUpRequest is the input for topping up a wallet.
 type TopUpRequest struct {
 	Amount         int64  `json:"amount" validate:"required,gt=0"`
-	IdempotencyKey string `json:"-"` // From header
+	IdempotencyKey string `json:"-" validate:"required"`
 }
 
 // TopUpResponse is returned after a successful top-up.
@@ -29,10 +29,10 @@ type TopUpResponse struct {
 
 // TransferRequest is the input for transferring between wallets.
 type TransferRequest struct {
-	FromUserID     string `json:"from_user_id" validate:"required,uuid"`
-	ToUserID       string `json:"to_user_id" validate:"required,uuid"`
+	FromUserID     string `json:"from_user_id" validate:"required,uuid,ne=00000000-0000-0000-0000-000000000000"`
+	ToUserID       string `json:"to_user_id" validate:"required,uuid,nefield=FromUserID,ne=00000000-0000-0000-0000-000000000000"`
 	Amount         int64  `json:"amount" validate:"required,gt=0"`
-	IdempotencyKey string `json:"-"` // From header
+	IdempotencyKey string `json:"-" validate:"required"`
 }
 
 // TransferResponse is returned after a successful transfer.
@@ -52,7 +52,7 @@ type WalletBalanceResponse struct {
 
 // ReverseRequest is the input for reversing a transaction.
 type ReverseRequest struct {
-	IdempotencyKey string `json:"-"` // From header
+	IdempotencyKey string `json:"-" validate:"required"`
 }
 
 // ReverseResponse is returned after a successful reversal.

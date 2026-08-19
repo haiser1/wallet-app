@@ -2,21 +2,27 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"test-teknis/internal/config"
 	"test-teknis/internal/database"
 	"test-teknis/internal/handler"
 	"test-teknis/internal/repository"
 	"test-teknis/internal/service"
+	appValidator "test-teknis/internal/validator"
 )
 
 func main() {
+	// Setup zerolog logger
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+
 	// Load .env file (ignore error if not found, e.g. in production)
 	_ = godotenv.Load()
 
@@ -26,19 +32,19 @@ func main() {
 	// Connect to database
 	pool, err := database.NewPostgresPool(cfg.DatabaseURL())
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer pool.Close()
 
 	// Run migrations
 	migrationSQL, err := os.ReadFile("internal/database/migrations/001_init.sql")
 	if err != nil {
-		log.Fatalf("Failed to read migration file: %v", err)
+		log.Fatal().Err(err).Msg("Failed to read migration file")
 	}
 	if err := database.RunMigrations(pool, string(migrationSQL)); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
-	log.Println("Database migrations applied successfully")
+	log.Info().Msg("Database migrations applied successfully")
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(pool)
@@ -58,6 +64,9 @@ func main() {
 	e := echo.New()
 	e.HideBanner = true
 
+	// Register Custom Validator (go-playground/validator)
+	e.Validator = appValidator.NewCustomValidator()
+
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -75,8 +84,8 @@ func main() {
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
-	log.Printf("Server starting on %s", addr)
+	log.Info().Msgf("Server starting on %s", addr)
 	if err := e.Start(addr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatal().Err(err).Msg("Failed to start server")
 	}
 }

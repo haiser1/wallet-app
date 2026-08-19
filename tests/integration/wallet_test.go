@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"test-teknis/internal/domain"
+	appValidator "test-teknis/internal/validator"
 )
 
 // TestTopUp_Success verifies that a top-up correctly increases the wallet balance
@@ -193,18 +194,20 @@ func TestTransfer_InsufficientBalance(t *testing.T) {
 func TestTransfer_SelfTransfer(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
+	v := appValidator.NewCustomValidator()
 
 	user, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
 		Username: "self_user",
 		Email:    "self@test.com",
 	})
 
-	_, err := testWalletService.Transfer(ctx, domain.TransferRequest{
+	req := domain.TransferRequest{
 		FromUserID:     user.ID,
 		ToUserID:       user.ID,
 		Amount:         10000,
 		IdempotencyKey: "self-transfer",
-	})
+	}
+	err := v.Validate(&req)
 	if err == nil {
 		t.Fatal("expected error for self-transfer")
 	}
@@ -217,6 +220,7 @@ func TestTransfer_SelfTransfer(t *testing.T) {
 func TestTransfer_InvalidAmount(t *testing.T) {
 	cleanupTestData(t)
 	ctx := context.Background()
+	v := appValidator.NewCustomValidator()
 
 	alice, _ := testUserService.CreateUser(ctx, domain.CreateUserRequest{
 		Username: "alice",
@@ -237,12 +241,13 @@ func TestTransfer_InvalidAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := testWalletService.Transfer(ctx, domain.TransferRequest{
+			req := domain.TransferRequest{
 				FromUserID:     alice.ID,
 				ToUserID:       bob.ID,
 				Amount:         tt.amount,
 				IdempotencyKey: fmt.Sprintf("invalid-amount-%d", tt.amount),
-			})
+			}
+			err := v.Validate(&req)
 			if err == nil {
 				t.Fatalf("expected error for %s", tt.name)
 			}

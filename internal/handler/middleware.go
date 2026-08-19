@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 
 	appErrors "test-teknis/internal/errors"
 )
@@ -21,7 +21,7 @@ func respondError(c echo.Context, err error) error {
 	}
 
 	// Log unexpected errors
-	log.Printf("unexpected error: %v", err)
+	log.Error().Err(err).Msg("unexpected error")
 
 	return c.JSON(http.StatusInternalServerError, appErrors.ErrorResponse{
 		Error: appErrors.ErrorDetail{

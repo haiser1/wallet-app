@@ -33,15 +33,8 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		return respondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
-	// Basic validation
-	if req.Username == "" {
-		return respondError(c, appErrors.NewValidationError("username is required"))
-	}
-	if len(req.Username) < 3 {
-		return respondError(c, appErrors.NewValidationError("username must be at least 3 characters"))
-	}
-	if req.Email == "" {
-		return respondError(c, appErrors.NewValidationError("email is required"))
+	if err := c.Validate(&req); err != nil {
+		return respondError(c, err)
 	}
 
 	user, err := h.userService.CreateUser(c.Request().Context(), req)
