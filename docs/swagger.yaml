@@ -1,0 +1,523 @@
+basePath: /
+definitions:
+  domain.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  domain.CreateUserRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      username:
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - email
+    - username
+    type: object
+  domain.EntryType:
+    enum:
+    - debit
+    - credit
+    type: string
+    x-enum-varnames:
+    - EntryTypeDebit
+    - EntryTypeCredit
+  domain.LedgerEntry:
+    properties:
+      amount:
+        type: integer
+      balance_after:
+        type: integer
+      created_at:
+        type: string
+      description:
+        type: string
+      entry_type:
+        $ref: '#/definitions/domain.EntryType'
+      id:
+        type: string
+      transaction_id:
+        type: string
+      wallet_id:
+        type: string
+    type: object
+  domain.LoginRequest:
+    properties:
+      username:
+        type: string
+    required:
+    - username
+    type: object
+  domain.PaginatedMutations:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/domain.LedgerEntry'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  domain.ReconciliationReport:
+    properties:
+      consistent_wallets:
+        type: integer
+      discrepancies:
+        items:
+          $ref: '#/definitions/domain.ReconciliationResult'
+        type: array
+      is_healthy:
+        type: boolean
+      total_wallets:
+        type: integer
+    type: object
+  domain.ReconciliationResult:
+    properties:
+      computed_balance:
+        type: integer
+      difference:
+        type: integer
+      is_consistent:
+        type: boolean
+      recorded_balance:
+        type: integer
+      user_id:
+        type: string
+      wallet_id:
+        type: string
+    type: object
+  domain.ReverseResponse:
+    properties:
+      original_transaction_id:
+        type: string
+      reversal_transaction_id:
+        type: string
+    type: object
+  domain.TopUpRequest:
+    properties:
+      amount:
+        type: integer
+    required:
+    - amount
+    type: object
+  domain.TopUpResponse:
+    properties:
+      balance:
+        type: integer
+      transaction_id:
+        type: string
+    type: object
+  domain.TransferRequest:
+    properties:
+      amount:
+        type: integer
+      from_user_id:
+        type: string
+      to_user_id:
+        type: string
+    required:
+    - amount
+    - from_user_id
+    - to_user_id
+    type: object
+  domain.TransferResponse:
+    properties:
+      from_balance:
+        type: integer
+      to_balance:
+        type: integer
+      transaction_id:
+        type: string
+    type: object
+  domain.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  domain.WalletBalanceResponse:
+    properties:
+      balance:
+        type: integer
+      currency:
+        type: string
+      user_id:
+        type: string
+      wallet_id:
+        type: string
+    type: object
+  errors.ErrorDetail:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    type: object
+  errors.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/errors.ErrorDetail'
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: RESTful API for Wallet and Financial Transactions with double-entry
+    ledger, pessimistic locking, race-proof idempotency, and JWT authentication.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Wallet & Transaction API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user by username and return JWT token
+      parameters:
+      - description: Login Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.AuthResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      summary: Login user
+      tags:
+      - Auth
+  /api/v1/reconciliation:
+    post:
+      description: Run system-wide balance reconciliation check
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.ReconciliationReport'
+            type: object
+      summary: System reconciliation
+      tags:
+      - System
+  /api/v1/transfers:
+    post:
+      consumes:
+      - application/json
+      description: Transfer funds between wallets. Sender MUST be the authenticated
+        user.
+      parameters:
+      - description: Idempotency Key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Transfer Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.TransferResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Transfer funds
+      tags:
+      - Transfer
+  /api/v1/transfers/{id}/reverse:
+    post:
+      description: Reverse a completed top-up or transfer transaction
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Idempotency Key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.ReverseResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reverse transaction
+      tags:
+      - Transfer
+  /api/v1/users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account and automatically generate an initial
+        wallet & JWT token
+      parameters:
+      - description: User Registration Info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.AuthResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - User
+  /api/v1/users/me:
+    get:
+      description: Retrieve profile of the authenticated user using ID stored in JWT
+        token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.User'
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - User
+  /api/v1/wallets/{userId}:
+    get:
+      description: Get current wallet balance for the authenticated user
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.WalletBalanceResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get wallet balance
+      tags:
+      - Wallet
+  /api/v1/wallets/{userId}/mutations:
+    get:
+      description: Get paginated ledger entry mutations for the authenticated user
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: per_page
+        type: integer
+      - description: Start date filter (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date filter (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.PaginatedMutations'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get ledger mutations
+      tags:
+      - Wallet
+  /api/v1/wallets/{userId}/topup:
+    post:
+      consumes:
+      - application/json
+      description: Deposit funds into the authenticated user's wallet
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Idempotency Key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: TopUp Info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.TopUpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/domain.TopUpResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Top-up wallet
+      tags:
+      - Wallet
+securityDefinitions:
+  BearerAuth:
+    description: Type 'Bearer ' followed by your JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

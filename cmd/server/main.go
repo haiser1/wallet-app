@@ -10,7 +10,9 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	echoSwagger "github.com/swaggo/echo-swagger"
 
+	_ "test-teknis/docs"
 	"test-teknis/internal/config"
 	"test-teknis/internal/database"
 	"test-teknis/internal/handler"
@@ -19,6 +21,24 @@ import (
 	"test-teknis/internal/service"
 	appValidator "test-teknis/internal/validator"
 )
+
+// @title Wallet & Transaction API
+// @version 1.0
+// @description RESTful API for Wallet and Financial Transactions with double-entry ledger, pessimistic locking, race-proof idempotency, and JWT authentication.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@example.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type 'Bearer ' followed by your JWT token.
 
 func main() {
 	// Setup zerolog logger
@@ -78,6 +98,9 @@ func main() {
 		return c.JSON(200, map[string]string{"status": "ok"})
 	})
 
+	// Swagger UI route
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	// Public auth & user routes
 	api := e.Group("/api/v1")
 	api.POST("/users", userHandler.CreateUser)
@@ -85,7 +108,7 @@ func main() {
 
 	// Protected routes (require JWT authentication)
 	protected := api.Group("", appMiddleware.JWTMiddleware(cfg.JWTSecret))
-	protected.GET("/users/:id", userHandler.GetUser)
+	protected.GET("/users/me", userHandler.GetUserProfile)
 
 	// Wallet & Transfer routes
 	walletHandler.RegisterRoutes(e, protected)
@@ -93,6 +116,7 @@ func main() {
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 	log.Info().Msgf("Server starting on %s", addr)
+	log.Info().Msgf("Swagger UI available at http://localhost%s/swagger/index.html", addr)
 	if err := e.Start(addr); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start server")
 	}

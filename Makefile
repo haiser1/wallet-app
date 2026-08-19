@@ -1,4 +1,4 @@
-.PHONY: run test test-unit test-integration docker-up docker-down migrate
+.PHONY: run test test-unit test-integration docker-up docker-down migrate swagger
 
 # help
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  test               Run all tests"
 	@echo "  test-unit          Run unit tests only"
 	@echo "  test-integration   Run integration tests only"
+	@echo "  swagger            Generate OpenAPI / Swagger docs"
 	@echo "  docker-up          Start PostgreSQL container"
 	@echo "  docker-down        Stop PostgreSQL container"
 	@echo "  docker-reset       Reset PostgreSQL container"
@@ -28,6 +29,10 @@ test-unit:
 # Run integration tests (requires PostgreSQL)
 test-integration:
 	go test ./tests/integration/... -v -count=1 -timeout=120s
+
+# Generate Swagger docs
+swagger:
+	swag init -g cmd/server/main.go
 
 # Start PostgreSQL container
 docker-up:

@@ -37,6 +37,18 @@ func (h *WalletHandler) RegisterRoutes(e *echo.Echo, protectedGroup *echo.Group)
 }
 
 // GetBalance handles GET /api/v1/wallets/:userId
+// @Summary Get wallet balance
+// @Description Get current wallet balance for the authenticated user
+// @Tags Wallet
+// @Produce json
+// @Security BearerAuth
+// @Param userId path string true "User ID"
+// @Success 200 {object} map[string]domain.WalletBalanceResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 403 {object} errors.ErrorResponse
+// @Failure 404 {object} errors.ErrorResponse
+// @Router /api/v1/wallets/{userId} [get]
 func (h *WalletHandler) GetBalance(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
@@ -66,6 +78,20 @@ func (h *WalletHandler) GetBalance(c echo.Context) error {
 }
 
 // TopUp handles POST /api/v1/wallets/:userId/topup
+// @Summary Top-up wallet
+// @Description Deposit funds into the authenticated user's wallet
+// @Tags Wallet
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param userId path string true "User ID"
+// @Param Idempotency-Key header string true "Idempotency Key"
+// @Param request body domain.TopUpRequest true "TopUp Info"
+// @Success 200 {object} map[string]domain.TopUpResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 403 {object} errors.ErrorResponse
+// @Router /api/v1/wallets/{userId}/topup [post]
 func (h *WalletHandler) TopUp(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
@@ -106,6 +132,19 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 }
 
 // Transfer handles POST /api/v1/transfers
+// @Summary Transfer funds
+// @Description Transfer funds between wallets. Sender MUST be the authenticated user.
+// @Tags Transfer
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Idempotency-Key header string true "Idempotency Key"
+// @Param request body domain.TransferRequest true "Transfer Request"
+// @Success 200 {object} map[string]domain.TransferResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 403 {object} errors.ErrorResponse
+// @Router /api/v1/transfers [post]
 func (h *WalletHandler) Transfer(c echo.Context) error {
 	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
@@ -139,6 +178,18 @@ func (h *WalletHandler) Transfer(c echo.Context) error {
 }
 
 // ReverseTransaction handles POST /api/v1/transfers/:id/reverse
+// @Summary Reverse transaction
+// @Description Reverse a completed top-up or transfer transaction
+// @Tags Transfer
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Transaction ID"
+// @Param Idempotency-Key header string true "Idempotency Key"
+// @Success 200 {object} map[string]domain.ReverseResponse
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 409 {object} errors.ErrorResponse
+// @Router /api/v1/transfers/{id}/reverse [post]
 func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 	txnID := c.Param("id")
 	if txnID == "" {
@@ -168,6 +219,21 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 }
 
 // GetMutations handles GET /api/v1/wallets/:userId/mutations
+// @Summary Get ledger mutations
+// @Description Get paginated ledger entry mutations for the authenticated user
+// @Tags Wallet
+// @Produce json
+// @Security BearerAuth
+// @Param userId path string true "User ID"
+// @Param page query int false "Page number (default: 1)"
+// @Param per_page query int false "Items per page (default: 20, max: 100)"
+// @Param start_date query string false "Start date filter (YYYY-MM-DD)"
+// @Param end_date query string false "End date filter (YYYY-MM-DD)"
+// @Success 200 {object} domain.PaginatedMutations
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 403 {object} errors.ErrorResponse
+// @Router /api/v1/wallets/{userId}/mutations [get]
 func (h *WalletHandler) GetMutations(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
@@ -231,6 +297,12 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 }
 
 // Reconcile handles POST /api/v1/reconciliation
+// @Summary System reconciliation
+// @Description Run system-wide balance reconciliation check
+// @Tags System
+// @Produce json
+// @Success 200 {object} map[string]domain.ReconciliationReport
+// @Router /api/v1/reconciliation [post]
 func (h *WalletHandler) Reconcile(c echo.Context) error {
 	report, err := h.walletService.Reconcile(c.Request().Context())
 	if err != nil {
