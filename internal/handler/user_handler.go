@@ -23,7 +23,7 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 
 // CreateUser handles POST /api/v1/users (Public)
 // @Summary Register a new user
-// @Description Create a new user account and automatically generate an initial wallet & JWT token
+// @Description Create a new user account with username, unique email, and password. Automatically generates an initial wallet & JWT token.
 // @Tags User
 // @Accept json
 // @Produce json
@@ -54,14 +54,14 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 
 // Login handles POST /api/v1/auth/login (Public)
 // @Summary Login user
-// @Description Authenticate user by username and return JWT token
+// @Description Authenticate user by email and password, returning JWT token
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body domain.LoginRequest true "Login Request"
+// @Param request body domain.LoginRequest true "Login Request (Email & Password)"
 // @Success 200 {object} map[string]domain.AuthResponse
 // @Failure 400 {object} errors.ErrorResponse
-// @Failure 404 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
 // @Router /api/v1/auth/login [post]
 func (h *UserHandler) Login(c echo.Context) error {
 	var req domain.LoginRequest
@@ -83,7 +83,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 	})
 }
 
-// GetUserProfile handles GET /api/v1/users/me (Protected - returns profile of current authenticated user)
+// GetUserProfile handles GET /api/v1/users/me (Protected - uses JWT user_id)
 // @Summary Get current user profile
 // @Description Retrieve profile of the authenticated user using ID stored in JWT token
 // @Tags User

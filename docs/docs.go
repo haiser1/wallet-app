@@ -25,7 +25,7 @@ const docTemplate = `{
     "paths": {
         "/api/v1/auth/login": {
             "post": {
-                "description": "Authenticate user by username and return JWT token",
+                "description": "Authenticate user by email and password, returning JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -38,7 +38,7 @@ const docTemplate = `{
                 "summary": "Login user",
                 "parameters": [
                     {
-                        "description": "Login Request",
+                        "description": "Login Request (Email \u0026 Password)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -63,8 +63,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
@@ -102,7 +102,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Transfer funds between wallets. Sender MUST be the authenticated user.",
+                "description": "Transfer funds from authenticated user's wallet to another user's wallet. Sender user_id is extracted automatically from JWT token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -149,12 +149,6 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
@@ -226,7 +220,7 @@ const docTemplate = `{
         },
         "/api/v1/users": {
             "post": {
-                "description": "Create a new user account and automatically generate an initial wallet \u0026 JWT token",
+                "description": "Create a new user account with username, unique email, and password. Automatically generates an initial wallet \u0026 JWT token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -313,14 +307,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wallets/{userId}": {
+        "/api/v1/wallets": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get current wallet balance for the authenticated user",
+                "description": "Get current wallet balance for the authenticated user (user_id extracted from JWT token payload)",
                 "produces": [
                     "application/json"
                 ],
@@ -328,15 +322,6 @@ const docTemplate = `{
                     "Wallet"
                 ],
                 "summary": "Get wallet balance",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -347,20 +332,8 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
@@ -374,14 +347,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wallets/{userId}/mutations": {
+        "/api/v1/wallets/mutations": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated ledger entry mutations for the authenticated user",
+                "description": "Get paginated ledger entry mutations for the authenticated user (user_id extracted from JWT token payload)",
                 "produces": [
                     "application/json"
                 ],
@@ -390,13 +363,6 @@ const docTemplate = `{
                 ],
                 "summary": "Get ledger mutations",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
                     {
                         "type": "integer",
                         "description": "Page number (default: 1)",
@@ -440,24 +406,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
                     }
                 }
             }
         },
-        "/api/v1/wallets/{userId}/topup": {
+        "/api/v1/wallets/topup": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deposit funds into the authenticated user's wallet",
+                "description": "Deposit funds into the authenticated user's wallet (user_id extracted from JWT token payload)",
                 "consumes": [
                     "application/json"
                 ],
@@ -469,13 +429,6 @@ const docTemplate = `{
                 ],
                 "summary": "Top-up wallet",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
                     {
                         "type": "string",
                         "description": "Idempotency Key",
@@ -514,12 +467,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
                     }
                 }
             }
@@ -541,12 +488,18 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
+                "password",
                 "username"
             ],
             "properties": {
                 "email": {
                     "type": "string",
                     "maxLength": 255
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 6
                 },
                 "username": {
                     "type": "string",
@@ -598,10 +551,14 @@ const docTemplate = `{
         "domain.LoginRequest": {
             "type": "object",
             "required": [
-                "username"
+                "email",
+                "password"
             ],
             "properties": {
-                "username": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }
@@ -709,15 +666,11 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "amount",
-                "from_user_id",
                 "to_user_id"
             ],
             "properties": {
                 "amount": {
                     "type": "integer"
-                },
-                "from_user_id": {
-                    "type": "string"
                 },
                 "to_user_id": {
                     "type": "string"

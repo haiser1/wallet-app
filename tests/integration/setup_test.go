@@ -70,6 +70,9 @@ func TestMain(m *testing.M) {
 // createTestUser creates a user and returns the domain.User.
 func createTestUser(t *testing.T, req domain.CreateUserRequest) *domain.User {
 	t.Helper()
+	if req.Password == "" {
+		req.Password = "password123"
+	}
 	res, err := testUserService.CreateUser(context.Background(), req)
 	if err != nil {
 		t.Fatalf("create test user failed: %v", err)

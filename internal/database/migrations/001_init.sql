@@ -8,11 +8,14 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- USERS
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS users (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username    VARCHAR(100) UNIQUE NOT NULL,
-    email       VARCHAR(255) UNIQUE NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username      VARCHAR(100) UNIQUE NOT NULL,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL DEFAULT '',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '';
 
 -- ============================================================================
 -- WALLETS (one per user)
@@ -78,8 +81,8 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
 -- ============================================================================
 -- SYSTEM ACCOUNT (counter-party for top-ups)
 -- ============================================================================
-INSERT INTO users (id, username, email)
-VALUES ('00000000-0000-0000-0000-000000000000', 'SYSTEM', 'system@internal')
+INSERT INTO users (id, username, email, password_hash)
+VALUES ('00000000-0000-0000-0000-000000000000', 'SYSTEM', 'system@internal', '')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO wallets (id, user_id, currency)

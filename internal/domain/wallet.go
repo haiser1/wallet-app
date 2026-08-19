@@ -29,9 +29,9 @@ type TopUpResponse struct {
 
 // TransferRequest is the input for transferring between wallets.
 type TransferRequest struct {
-	FromUserID     string `json:"from_user_id" validate:"required,uuid,ne=00000000-0000-0000-0000-000000000000"`
-	ToUserID       string `json:"to_user_id" validate:"required,uuid,nefield=FromUserID,ne=00000000-0000-0000-0000-000000000000"`
+	ToUserID       string `json:"to_user_id" validate:"required,uuid,ne=00000000-0000-0000-0000-000000000000"`
 	Amount         int64  `json:"amount" validate:"required,gt=0"`
+	FromUserID     string `json:"-"` // Set automatically from JWT token in handler
 	IdempotencyKey string `json:"-" validate:"required"`
 }
 

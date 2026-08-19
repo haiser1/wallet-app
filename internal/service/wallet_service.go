@@ -202,6 +202,10 @@ func (s *WalletService) getIdempotentTopUpResponse(ctx context.Context, key stri
 //
 // Wallets are locked in ascending user ID order to prevent deadlocks.
 func (s *WalletService) Transfer(ctx context.Context, req domain.TransferRequest) (*domain.TransferResponse, error) {
+	if req.FromUserID == req.ToUserID {
+		return nil, appErrors.ErrSelfTransfer
+	}
+
 	// --- Check idempotency (fast path) ---
 	existing, err := s.idempotencyRepo.Get(ctx, req.IdempotencyKey)
 	if err != nil {

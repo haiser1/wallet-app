@@ -31,6 +31,7 @@ var (
 	ErrSystemWallet        = &AppError{Code: http.StatusBadRequest, Message: "cannot perform operations on the system wallet"}
 	ErrUnauthorized        = &AppError{Code: http.StatusUnauthorized, Message: "unauthorized: missing or invalid authentication token"}
 	ErrForbidden           = &AppError{Code: http.StatusForbidden, Message: "forbidden: access denied to other user data"}
+	ErrInvalidCredentials  = &AppError{Code: http.StatusUnauthorized, Message: "invalid email or password"}
 )
 
 // NewValidationError creates a validation error with a custom message.

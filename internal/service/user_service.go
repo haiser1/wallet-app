@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"test-teknis/internal/auth"
 	"test-teknis/internal/domain"
+	appErrors "test-teknis/internal/errors"
 	"test-teknis/internal/repository"
 )
 
@@ -23,9 +26,15 @@ func NewUserService(userRepo *repository.UserRepository, jwtSecret string) *User
 	}
 }
 
-// CreateUser creates a new user with their wallet and returns user + JWT token.
+// CreateUser creates a new user with hashed password & wallet, returning user + JWT token.
 func (s *UserService) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.AuthResponse, error) {
-	user, err := s.userRepo.Create(ctx, req)
+	// Hash password using bcrypt
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	user, err := s.userRepo.Create(ctx, req, string(passwordHash))
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +50,19 @@ func (s *UserService) CreateUser(ctx context.Context, req domain.CreateUserReque
 	}, nil
 }
 
-// Login authenticates a user by username and generates a JWT token containing user_id.
+// Login authenticates a user by email & password and generates a JWT token containing user_id.
 func (s *UserService) Login(ctx context.Context, req domain.LoginRequest) (*domain.AuthResponse, error) {
-	user, err := s.userRepo.GetByUsername(ctx, req.Username)
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
+		if err == appErrors.ErrUserNotFound {
+			return nil, appErrors.ErrInvalidCredentials
+		}
 		return nil, err
+	}
+
+	// Compare bcrypt password hash
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		return nil, appErrors.ErrInvalidCredentials
 	}
 
 	token, err := auth.GenerateToken(user.ID, s.jwtSecret)

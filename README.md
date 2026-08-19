@@ -137,18 +137,18 @@ Menggunakan arsitektur berlapis yang umum di Go:
 
 | Method | Path | Akses | Deskripsi |
 |---|---|---|---|
-| `POST` | `/api/v1/users` | Publik | Daftar user baru (mengembalikan JWT token) |
-| `POST` | `/api/v1/auth/login` | Publik | Login user (mengembalikan JWT token) |
-| `GET` | `/api/v1/users/:id` | Protected | Lihat detail user (hanya akun milik sendiri) |
+| `POST` | `/api/v1/users` | Publik | Daftar user baru (username, email, password; mengembalikan JWT token) |
+| `POST` | `/api/v1/auth/login` | Publik | Login user (email, password; mengembalikan JWT token) |
+| `GET` | `/api/v1/users/me` | Protected | Lihat detail user (berdasarkan user_id dari token JWT) |
 
 ### Wallet & Transfer
 
 | Method | Path | Akses | Deskripsi |
 |---|---|---|---|
-| `GET` | `/api/v1/wallets/:userId` | Protected | Lihat saldo wallet (hanya milik sendiri) |
-| `POST` | `/api/v1/wallets/:userId/topup` | Protected | Top-up saldo (hanya ke wallet sendiri) |
-| `GET` | `/api/v1/wallets/:userId/mutations` | Protected | Lihat mutasi (hanya milik sendiri) |
-| `POST` | `/api/v1/transfers` | Protected | Transfer saldo (pengirim wajib akun sendiri) |
+| `GET` | `/api/v1/wallets` | Protected | Lihat saldo wallet (berdasarkan user_id dari token JWT) |
+| `POST` | `/api/v1/wallets/topup` | Protected | Top-up saldo (berdasarkan user_id dari token JWT) |
+| `GET` | `/api/v1/wallets/mutations` | Protected | Lihat mutasi ledger (berdasarkan user_id dari token JWT) |
+| `POST` | `/api/v1/transfers` | Protected | Transfer saldo ke `to_user_id` (pengirim dari token JWT) |
 | `POST` | `/api/v1/transfers/:id/reverse` | Protected | Batalkan transaksi (reversal) |
 
 ### Sistem
@@ -156,6 +156,7 @@ Menggunakan arsitektur berlapis yang umum di Go:
 | Method | Path | Akses | Deskripsi |
 |---|---|---|---|
 | `GET` | `/health` | Publik | Health check |
+| `GET` | `/swagger/index.html` | Publik | Dokumentasi OpenAPI / Swagger UI |
 | `POST` | `/api/v1/reconciliation` | Publik | Jalankan pemeriksaan konsistensi |
 
 ### Header Wajib
@@ -172,37 +173,46 @@ Idempotency-Key: <string unik>
 ### Contoh Penggunaan (curl)
 
 ```bash
-# 1. Buat user Alice (response berisi JWT token)
+# 1. Buat user Alice
 ALICE_RESP=$(curl -s -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
-  -d '{"username":"alice","email":"alice@example.com"}')
+  -d '{"username":"alice","email":"alice@example.com","password":"password123"}')
 ALICE_TOKEN=$(echo $ALICE_RESP | jq -r '.data.token')
 ALICE_ID=$(echo $ALICE_RESP | jq -r '.data.user.id')
 
-# 2. Login Bob (jika sudah terdaftar)
-BOB_RESP=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+# 2. Buat user Bob
+BOB_RESP=$(curl -s -X POST http://localhost:8080/api/v1/users \
   -H "Content-Type: application/json" \
-  -d '{"username":"bob"}')
-BOB_TOKEN=$(echo $BOB_RESP | jq -r '.data.token')
+  -d '{"username":"bob","email":"bob@example.com","password":"password123"}')
 BOB_ID=$(echo $BOB_RESP | jq -r '.data.user.id')
 
-# 3. Top-up Alice (menggunakan Bearer Token Alice)
-curl -s -X POST http://localhost:8080/api/v1/wallets/$ALICE_ID/topup \
+# 3. Login Bob menggunakan Email dan Password
+BOB_LOGIN_RESP=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"bob@example.com","password":"password123"}')
+BOB_TOKEN=$(echo $BOB_LOGIN_RESP | jq -r '.data.token')
+
+# 4. Top-up Alice (menggunakan Bearer Token Alice)
+curl -s -X POST http://localhost:8080/api/v1/wallets/topup \
   -H "Authorization: Bearer $ALICE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: topup-001" \
   -d '{"amount":100000}'
 
-# 4. Transfer Alice -> Bob (FromUserID harus sesuai dengan JWT Alice)
+# 5. Transfer Alice -> Bob (FromUserID diambil otomatis dari payload JWT Alice)
 curl -s -X POST http://localhost:8080/api/v1/transfers \
   -H "Authorization: Bearer $ALICE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: transfer-001" \
-  -d "{\"from_user_id\":\"$ALICE_ID\",\"to_user_id\":\"$BOB_ID\",\"amount\":50000}"
+  -d "{\"to_user_id\":\"$BOB_ID\",\"amount\":50000}"
 
-# 5. Percobaan akses ilegal (Mencoba melihat saldo Bob menggunakan Token Alice -> 403 Forbidden)
-curl -s http://localhost:8080/api/v1/wallets/$BOB_ID \
-  -H "Authorization: Bearer $ALICE_TOKEN"
+# 6. Lihat Profil Bob (JWT Token Bob)
+curl -s http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer $BOB_TOKEN"
+
+# 7. Lihat Saldo Bob (JWT Token Bob)
+curl -s http://localhost:8080/api/v1/wallets \
+  -H "Authorization: Bearer $BOB_TOKEN"
 ```
 
 ---

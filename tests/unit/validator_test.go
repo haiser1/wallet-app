@@ -19,30 +19,30 @@ func TestCustomValidator_CreateUserRequest(t *testing.T) {
 	}{
 		{
 			name:    "valid user request",
-			req:     domain.CreateUserRequest{Username: "john_doe", Email: "john@example.com"},
+			req:     domain.CreateUserRequest{Username: "john_doe", Email: "john@example.com", Password: "password123"},
 			wantErr: false,
 		},
 		{
 			name:    "missing username",
-			req:     domain.CreateUserRequest{Username: "", Email: "john@example.com"},
+			req:     domain.CreateUserRequest{Username: "", Email: "john@example.com", Password: "password123"},
 			wantErr: true,
 			errMsg:  "username is required",
 		},
 		{
 			name:    "username too short",
-			req:     domain.CreateUserRequest{Username: "ab", Email: "john@example.com"},
+			req:     domain.CreateUserRequest{Username: "ab", Email: "john@example.com", Password: "password123"},
 			wantErr: true,
 			errMsg:  "username must be at least 3 characters",
 		},
 		{
 			name:    "missing email",
-			req:     domain.CreateUserRequest{Username: "john_doe", Email: ""},
+			req:     domain.CreateUserRequest{Username: "john_doe", Email: "", Password: "password123"},
 			wantErr: true,
 			errMsg:  "email is required",
 		},
 		{
 			name:    "invalid email",
-			req:     domain.CreateUserRequest{Username: "john_doe", Email: "not-an-email"},
+			req:     domain.CreateUserRequest{Username: "john_doe", Email: "not-an-email", Password: "password123"},
 			wantErr: true,
 			errMsg:  "invalid email format",
 		},
@@ -128,28 +128,6 @@ func TestCustomValidator_TransferRequest(t *testing.T) {
 				IdempotencyKey: "key-123",
 			},
 			wantErr: false,
-		},
-		{
-			name: "self transfer",
-			req: domain.TransferRequest{
-				FromUserID:     validUUID1,
-				ToUserID:       validUUID1,
-				Amount:         50000,
-				IdempotencyKey: "key-123",
-			},
-			wantErr: true,
-			errMsg:  appErrors.ErrSelfTransfer.Message,
-		},
-		{
-			name: "transfer from system wallet",
-			req: domain.TransferRequest{
-				FromUserID:     domain.SystemWalletID,
-				ToUserID:       validUUID2,
-				Amount:         50000,
-				IdempotencyKey: "key-123",
-			},
-			wantErr: true,
-			errMsg:  appErrors.ErrSystemWallet.Message,
 		},
 		{
 			name: "transfer to system wallet",

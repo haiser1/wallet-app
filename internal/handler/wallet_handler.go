@@ -25,10 +25,10 @@ func NewWalletHandler(walletService *service.WalletService) *WalletHandler {
 
 // RegisterRoutes registers wallet-related routes on the Echo instance.
 func (h *WalletHandler) RegisterRoutes(e *echo.Echo, protectedGroup *echo.Group) {
-	// Protected endpoints (require JWT auth & ownership validation)
-	protectedGroup.GET("/wallets/:userId", h.GetBalance)
-	protectedGroup.POST("/wallets/:userId/topup", h.TopUp)
-	protectedGroup.GET("/wallets/:userId/mutations", h.GetMutations)
+	// Protected endpoints (all use JWT user_id from context, zero :userId URL params!)
+	protectedGroup.GET("/wallets", h.GetBalance)
+	protectedGroup.POST("/wallets/topup", h.TopUp)
+	protectedGroup.GET("/wallets/mutations", h.GetMutations)
 
 	protectedGroup.POST("/transfers", h.Transfer)
 	protectedGroup.POST("/transfers/:id/reverse", h.ReverseTransaction)
@@ -36,38 +36,23 @@ func (h *WalletHandler) RegisterRoutes(e *echo.Echo, protectedGroup *echo.Group)
 	e.POST("/api/v1/reconciliation", h.Reconcile)
 }
 
-// GetBalance handles GET /api/v1/wallets/:userId
+// GetBalance handles GET /api/v1/wallets
 // @Summary Get wallet balance
-// @Description Get current wallet balance for the authenticated user
+// @Description Get current wallet balance for the authenticated user (user_id extracted from JWT token payload)
 // @Tags Wallet
 // @Produce json
 // @Security BearerAuth
-// @Param userId path string true "User ID"
 // @Success 200 {object} map[string]domain.WalletBalanceResponse
-// @Failure 400 {object} errors.ErrorResponse
 // @Failure 401 {object} errors.ErrorResponse
-// @Failure 403 {object} errors.ErrorResponse
 // @Failure 404 {object} errors.ErrorResponse
-// @Router /api/v1/wallets/{userId} [get]
+// @Router /api/v1/wallets [get]
 func (h *WalletHandler) GetBalance(c echo.Context) error {
-	userID := c.Param("userId")
-	if userID == "" {
-		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
-	}
-	if userID == domain.SystemWalletID {
-		return middleware.RespondError(c, appErrors.ErrSystemWallet)
-	}
-
 	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
 		return middleware.RespondError(c, err)
 	}
 
-	if authUserID != userID {
-		return middleware.RespondError(c, appErrors.ErrForbidden)
-	}
-
-	resp, err := h.walletService.GetBalance(c.Request().Context(), userID)
+	resp, err := h.walletService.GetBalance(c.Request().Context(), authUserID)
 	if err != nil {
 		return middleware.RespondError(c, err)
 	}
@@ -77,37 +62,23 @@ func (h *WalletHandler) GetBalance(c echo.Context) error {
 	})
 }
 
-// TopUp handles POST /api/v1/wallets/:userId/topup
+// TopUp handles POST /api/v1/wallets/topup
 // @Summary Top-up wallet
-// @Description Deposit funds into the authenticated user's wallet
+// @Description Deposit funds into the authenticated user's wallet (user_id extracted from JWT token payload)
 // @Tags Wallet
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param userId path string true "User ID"
 // @Param Idempotency-Key header string true "Idempotency Key"
 // @Param request body domain.TopUpRequest true "TopUp Info"
 // @Success 200 {object} map[string]domain.TopUpResponse
 // @Failure 400 {object} errors.ErrorResponse
 // @Failure 401 {object} errors.ErrorResponse
-// @Failure 403 {object} errors.ErrorResponse
-// @Router /api/v1/wallets/{userId}/topup [post]
+// @Router /api/v1/wallets/topup [post]
 func (h *WalletHandler) TopUp(c echo.Context) error {
-	userID := c.Param("userId")
-	if userID == "" {
-		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
-	}
-	if userID == domain.SystemWalletID {
-		return middleware.RespondError(c, appErrors.ErrSystemWallet)
-	}
-
 	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
 		return middleware.RespondError(c, err)
-	}
-
-	if authUserID != userID {
-		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	var req domain.TopUpRequest
@@ -121,7 +92,7 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 		return middleware.RespondError(c, err)
 	}
 
-	resp, err := h.walletService.TopUp(c.Request().Context(), userID, req)
+	resp, err := h.walletService.TopUp(c.Request().Context(), authUserID, req)
 	if err != nil {
 		return middleware.RespondError(c, err)
 	}
@@ -133,7 +104,7 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 
 // Transfer handles POST /api/v1/transfers
 // @Summary Transfer funds
-// @Description Transfer funds between wallets. Sender MUST be the authenticated user.
+// @Description Transfer funds from authenticated user's wallet to another user's wallet. Sender user_id is extracted automatically from JWT token.
 // @Tags Transfer
 // @Accept json
 // @Produce json
@@ -143,7 +114,6 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 // @Success 200 {object} map[string]domain.TransferResponse
 // @Failure 400 {object} errors.ErrorResponse
 // @Failure 401 {object} errors.ErrorResponse
-// @Failure 403 {object} errors.ErrorResponse
 // @Router /api/v1/transfers [post]
 func (h *WalletHandler) Transfer(c echo.Context) error {
 	authUserID, err := middleware.GetAuthenticatedUserID(c)
@@ -156,15 +126,15 @@ func (h *WalletHandler) Transfer(c echo.Context) error {
 		return middleware.RespondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
+	req.FromUserID = authUserID
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
 
 	if err := c.Validate(&req); err != nil {
 		return middleware.RespondError(c, err)
 	}
 
-	// Ownership check: Sender MUST be the authenticated user!
-	if req.FromUserID != authUserID {
-		return middleware.RespondError(c, appErrors.ErrForbidden)
+	if req.ToUserID == authUserID {
+		return middleware.RespondError(c, appErrors.ErrSelfTransfer)
 	}
 
 	resp, err := h.walletService.Transfer(c.Request().Context(), req)
@@ -218,13 +188,12 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 	})
 }
 
-// GetMutations handles GET /api/v1/wallets/:userId/mutations
+// GetMutations handles GET /api/v1/wallets/mutations
 // @Summary Get ledger mutations
-// @Description Get paginated ledger entry mutations for the authenticated user
+// @Description Get paginated ledger entry mutations for the authenticated user (user_id extracted from JWT token payload)
 // @Tags Wallet
 // @Produce json
 // @Security BearerAuth
-// @Param userId path string true "User ID"
 // @Param page query int false "Page number (default: 1)"
 // @Param per_page query int false "Items per page (default: 20, max: 100)"
 // @Param start_date query string false "Start date filter (YYYY-MM-DD)"
@@ -232,24 +201,11 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 // @Success 200 {object} domain.PaginatedMutations
 // @Failure 400 {object} errors.ErrorResponse
 // @Failure 401 {object} errors.ErrorResponse
-// @Failure 403 {object} errors.ErrorResponse
-// @Router /api/v1/wallets/{userId}/mutations [get]
+// @Router /api/v1/wallets/mutations [get]
 func (h *WalletHandler) GetMutations(c echo.Context) error {
-	userID := c.Param("userId")
-	if userID == "" {
-		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
-	}
-	if userID == domain.SystemWalletID {
-		return middleware.RespondError(c, appErrors.ErrSystemWallet)
-	}
-
 	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
 		return middleware.RespondError(c, err)
-	}
-
-	if authUserID != userID {
-		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	query := domain.MutationQuery{}
@@ -288,7 +244,7 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 		query.EndDate = &endOfDay
 	}
 
-	resp, err := h.walletService.GetMutations(c.Request().Context(), userID, query)
+	resp, err := h.walletService.GetMutations(c.Request().Context(), authUserID, query)
 	if err != nil {
 		return middleware.RespondError(c, err)
 	}

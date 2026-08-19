@@ -12,12 +12,17 @@ definitions:
       email:
         maxLength: 255
         type: string
+      password:
+        maxLength: 100
+        minLength: 6
+        type: string
       username:
         maxLength: 100
         minLength: 3
         type: string
     required:
     - email
+    - password
     - username
     type: object
   domain.EntryType:
@@ -49,10 +54,13 @@ definitions:
     type: object
   domain.LoginRequest:
     properties:
-      username:
+      email:
+        type: string
+      password:
         type: string
     required:
-    - username
+    - email
+    - password
     type: object
   domain.PaginatedMutations:
     properties:
@@ -122,13 +130,10 @@ definitions:
     properties:
       amount:
         type: integer
-      from_user_id:
-        type: string
       to_user_id:
         type: string
     required:
     - amount
-    - from_user_id
     - to_user_id
     type: object
   domain.TransferResponse:
@@ -192,9 +197,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate user by username and return JWT token
+      description: Authenticate user by email and password, returning JWT token
       parameters:
-      - description: Login Request
+      - description: Login Request (Email & Password)
         in: body
         name: request
         required: true
@@ -213,8 +218,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
-        "404":
-          description: Not Found
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
       summary: Login user
@@ -239,8 +244,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Transfer funds between wallets. Sender MUST be the authenticated
-        user.
+      description: Transfer funds from authenticated user's wallet to another user's
+        wallet. Sender user_id is extracted automatically from JWT token.
       parameters:
       - description: Idempotency Key
         in: header
@@ -268,10 +273,6 @@ paths:
             $ref: '#/definitions/errors.ErrorResponse'
         "401":
           description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
       security:
@@ -323,8 +324,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new user account and automatically generate an initial
-        wallet & JWT token
+      description: Create a new user account with username, unique email, and password.
+        Automatically generates an initial wallet & JWT token.
       parameters:
       - description: User Registration Info
         in: body
@@ -378,15 +379,10 @@ paths:
       summary: Get current user profile
       tags:
       - User
-  /api/v1/wallets/{userId}:
+  /api/v1/wallets:
     get:
-      description: Get current wallet balance for the authenticated user
-      parameters:
-      - description: User ID
-        in: path
-        name: userId
-        required: true
-        type: string
+      description: Get current wallet balance for the authenticated user (user_id
+        extracted from JWT token payload)
       produces:
       - application/json
       responses:
@@ -396,16 +392,8 @@ paths:
             additionalProperties:
               $ref: '#/definitions/domain.WalletBalanceResponse'
             type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
         "401":
           description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
         "404":
@@ -417,15 +405,11 @@ paths:
       summary: Get wallet balance
       tags:
       - Wallet
-  /api/v1/wallets/{userId}/mutations:
+  /api/v1/wallets/mutations:
     get:
       description: Get paginated ledger entry mutations for the authenticated user
+        (user_id extracted from JWT token payload)
       parameters:
-      - description: User ID
-        in: path
-        name: userId
-        required: true
-        type: string
       - description: 'Page number (default: 1)'
         in: query
         name: page
@@ -457,26 +441,18 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get ledger mutations
       tags:
       - Wallet
-  /api/v1/wallets/{userId}/topup:
+  /api/v1/wallets/topup:
     post:
       consumes:
       - application/json
-      description: Deposit funds into the authenticated user's wallet
+      description: Deposit funds into the authenticated user's wallet (user_id extracted
+        from JWT token payload)
       parameters:
-      - description: User ID
-        in: path
-        name: userId
-        required: true
-        type: string
       - description: Idempotency Key
         in: header
         name: Idempotency-Key
@@ -503,10 +479,6 @@ paths:
             $ref: '#/definitions/errors.ErrorResponse'
         "401":
           description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
           schema:
             $ref: '#/definitions/errors.ErrorResponse'
       security:

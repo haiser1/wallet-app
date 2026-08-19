@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"test-teknis/internal/domain"
+	appErrors "test-teknis/internal/errors"
 	appValidator "test-teknis/internal/validator"
 )
 
@@ -179,7 +180,7 @@ func TestTransfer_InsufficientBalance(t *testing.T) {
 // TestTransfer_SelfTransfer verifies that self-transfer is rejected.
 func TestTransfer_SelfTransfer(t *testing.T) {
 	cleanupTestData(t)
-	v := appValidator.NewCustomValidator()
+	ctx := context.Background()
 
 	user := createTestUser(t, domain.CreateUserRequest{
 		Username: "self_user",
@@ -192,12 +193,12 @@ func TestTransfer_SelfTransfer(t *testing.T) {
 		Amount:         10000,
 		IdempotencyKey: "self-transfer",
 	}
-	err := v.Validate(&req)
+	_, err := testWalletService.Transfer(ctx, req)
 	if err == nil {
 		t.Fatal("expected error for self-transfer")
 	}
-	if err.Error() != "cannot transfer to the same user" {
-		t.Errorf("expected 'cannot transfer to the same user', got: %v", err)
+	if err.Error() != appErrors.ErrSelfTransfer.Message {
+		t.Errorf("expected %q, got: %v", appErrors.ErrSelfTransfer.Message, err)
 	}
 }
 

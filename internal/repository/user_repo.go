@@ -23,8 +23,8 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{pool: pool}
 }
 
-// Create inserts a new user and their wallet atomically.
-func (r *UserRepository) Create(ctx context.Context, req domain.CreateUserRequest) (*domain.User, error) {
+// Create inserts a new user and their wallet atomically with a hashed password.
+func (r *UserRepository) Create(ctx context.Context, req domain.CreateUserRequest, passwordHash string) (*domain.User, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -33,10 +33,10 @@ func (r *UserRepository) Create(ctx context.Context, req domain.CreateUserReques
 
 	var user domain.User
 	err = tx.QueryRow(ctx,
-		`INSERT INTO users (username, email) VALUES ($1, $2)
-		 RETURNING id, username, email, created_at`,
-		req.Username, req.Email,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
+		`INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)
+		 RETURNING id, username, email, password_hash, created_at`,
+		req.Username, req.Email, passwordHash,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -65,9 +65,9 @@ func (r *UserRepository) Create(ctx context.Context, req domain.CreateUserReques
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	var user domain.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, created_at FROM users WHERE id = $1`,
+		`SELECT id, username, email, password_hash, created_at FROM users WHERE id = $1`,
 		id,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, appErrors.ErrUserNotFound
@@ -77,18 +77,18 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, 
 	return &user, nil
 }
 
-// GetByUsername retrieves a user by their username.
-func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
+// GetByEmail retrieves a user by their email address.
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, username, email, created_at FROM users WHERE username = $1`,
-		username,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
+		`SELECT id, username, email, password_hash, created_at FROM users WHERE email = $1`,
+		email,
+	).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, appErrors.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("get user by username: %w", err)
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 	return &user, nil
 }
