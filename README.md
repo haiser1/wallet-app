@@ -256,7 +256,13 @@ curl -s -X POST http://localhost:8080/api/v1/reconciliation
 
 6. **Rate limiting**: Belum ada pembatasan rate. Dalam production, diperlukan untuk mencegah abuse.
 
-7. **Logging**: Menggunakan `log` standar. Untuk production, sebaiknya gunakan structured logging (misalnya `slog` atau `zerolog`).
+### 7. Validasi Request (`go-playground/validator`)
+
+Validasi input request dipisahkan secara tegas di layer HTTP/handler menggunakan library `go-playground/validator/v10` melalui adapter `CustomValidator` pada Echo (`e.Validator`). Layer `service` sepenuhnya bersih dari logika validasi struktur request dan berfokus pada aturan bisnis domain.
+
+### 8. Structured Logging (`zerolog`)
+
+Seluruh sistem logging dikonfigurasi menggunakan `rs/zerolog` untuk structured logging yang cepat, efisien, dan mendukung format JSON di lingkungan produksi serta format konsol berwarna di lingkungan pengembangan.
 
 ---
 
