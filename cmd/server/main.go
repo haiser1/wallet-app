@@ -14,6 +14,7 @@ import (
 	"test-teknis/internal/config"
 	"test-teknis/internal/database"
 	"test-teknis/internal/handler"
+	appMiddleware "test-teknis/internal/middleware"
 	"test-teknis/internal/repository"
 	"test-teknis/internal/service"
 	appValidator "test-teknis/internal/validator"
@@ -70,7 +71,7 @@ func main() {
 	// Global Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(handler.RequestIDMiddleware())
+	e.Use(appMiddleware.RequestIDMiddleware())
 
 	// Health check
 	e.GET("/health", func(c echo.Context) error {
@@ -83,7 +84,7 @@ func main() {
 	api.POST("/auth/login", userHandler.Login)
 
 	// Protected routes (require JWT authentication)
-	protected := api.Group("", handler.JWTMiddleware(cfg.JWTSecret))
+	protected := api.Group("", appMiddleware.JWTMiddleware(cfg.JWTSecret))
 	protected.GET("/users/:id", userHandler.GetUser)
 
 	// Wallet & Transfer routes

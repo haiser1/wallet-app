@@ -1,4 +1,4 @@
-package handler
+package middleware
 
 import (
 	"net/http"
@@ -11,8 +11,8 @@ import (
 	appErrors "test-teknis/internal/errors"
 )
 
-// respondError maps domain errors to HTTP responses with structured error bodies.
-func respondError(c echo.Context, err error) error {
+// RespondError maps domain errors to HTTP responses with structured error bodies.
+func RespondError(c echo.Context, err error) error {
 	if appErr, ok := appErrors.IsAppError(err); ok {
 		return c.JSON(appErr.Code, appErrors.ErrorResponse{
 			Error: appErrors.ErrorDetail{
@@ -52,22 +52,22 @@ func JWTMiddleware(secret string) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
-				return respondError(c, appErrors.ErrUnauthorized)
+				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-				return respondError(c, appErrors.ErrUnauthorized)
+				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
 			tokenStr := parts[1]
 			claims, err := auth.ParseToken(tokenStr, secret)
 			if err != nil {
-				return respondError(c, appErrors.ErrUnauthorized)
+				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
 			if claims.UserID == "" {
-				return respondError(c, appErrors.ErrUnauthorized)
+				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
 			c.Set("user_id", claims.UserID)

@@ -7,6 +7,7 @@ import (
 
 	"test-teknis/internal/domain"
 	appErrors "test-teknis/internal/errors"
+	"test-teknis/internal/middleware"
 	"test-teknis/internal/service"
 )
 
@@ -24,16 +25,16 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 func (h *UserHandler) CreateUser(c echo.Context) error {
 	var req domain.CreateUserRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, appErrors.NewValidationError("invalid request body"))
+		return middleware.RespondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	authResp, err := h.userService.CreateUser(c.Request().Context(), req)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, map[string]interface{}{
@@ -45,16 +46,16 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 func (h *UserHandler) Login(c echo.Context) error {
 	var req domain.LoginRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, appErrors.NewValidationError("invalid request body"))
+		return middleware.RespondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	authResp, err := h.userService.Login(c.Request().Context(), req)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -66,21 +67,21 @@ func (h *UserHandler) Login(c echo.Context) error {
 func (h *UserHandler) GetUser(c echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
-		return respondError(c, appErrors.NewValidationError("user id is required"))
+		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
 	}
 
-	authUserID, err := GetAuthenticatedUserID(c)
+	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	if authUserID != id {
-		return respondError(c, appErrors.ErrForbidden)
+		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	user, err := h.userService.GetUser(c.Request().Context(), id)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{

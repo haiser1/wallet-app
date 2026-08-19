@@ -9,6 +9,7 @@ import (
 
 	"test-teknis/internal/domain"
 	appErrors "test-teknis/internal/errors"
+	"test-teknis/internal/middleware"
 	"test-teknis/internal/service"
 )
 
@@ -39,24 +40,24 @@ func (h *WalletHandler) RegisterRoutes(e *echo.Echo, protectedGroup *echo.Group)
 func (h *WalletHandler) GetBalance(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
-		return respondError(c, appErrors.NewValidationError("user id is required"))
+		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
 	}
 	if userID == domain.SystemWalletID {
-		return respondError(c, appErrors.ErrSystemWallet)
+		return middleware.RespondError(c, appErrors.ErrSystemWallet)
 	}
 
-	authUserID, err := GetAuthenticatedUserID(c)
+	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	if authUserID != userID {
-		return respondError(c, appErrors.ErrForbidden)
+		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	resp, err := h.walletService.GetBalance(c.Request().Context(), userID)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -68,35 +69,35 @@ func (h *WalletHandler) GetBalance(c echo.Context) error {
 func (h *WalletHandler) TopUp(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
-		return respondError(c, appErrors.NewValidationError("user id is required"))
+		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
 	}
 	if userID == domain.SystemWalletID {
-		return respondError(c, appErrors.ErrSystemWallet)
+		return middleware.RespondError(c, appErrors.ErrSystemWallet)
 	}
 
-	authUserID, err := GetAuthenticatedUserID(c)
+	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	if authUserID != userID {
-		return respondError(c, appErrors.ErrForbidden)
+		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	var req domain.TopUpRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, appErrors.NewValidationError("invalid request body"))
+		return middleware.RespondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	resp, err := h.walletService.TopUp(c.Request().Context(), userID, req)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -106,30 +107,30 @@ func (h *WalletHandler) TopUp(c echo.Context) error {
 
 // Transfer handles POST /api/v1/transfers
 func (h *WalletHandler) Transfer(c echo.Context) error {
-	authUserID, err := GetAuthenticatedUserID(c)
+	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	var req domain.TransferRequest
 	if err := c.Bind(&req); err != nil {
-		return respondError(c, appErrors.NewValidationError("invalid request body"))
+		return middleware.RespondError(c, appErrors.NewValidationError("invalid request body"))
 	}
 
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	// Ownership check: Sender MUST be the authenticated user!
 	if req.FromUserID != authUserID {
-		return respondError(c, appErrors.ErrForbidden)
+		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	resp, err := h.walletService.Transfer(c.Request().Context(), req)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -141,24 +142,24 @@ func (h *WalletHandler) Transfer(c echo.Context) error {
 func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 	txnID := c.Param("id")
 	if txnID == "" {
-		return respondError(c, appErrors.NewValidationError("transaction id is required"))
+		return middleware.RespondError(c, appErrors.NewValidationError("transaction id is required"))
 	}
 
-	_, err := GetAuthenticatedUserID(c)
+	_, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	var req domain.ReverseRequest
 	req.IdempotencyKey = c.Request().Header.Get("Idempotency-Key")
 
 	if err := c.Validate(&req); err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	resp, err := h.walletService.Reverse(c.Request().Context(), txnID, req)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -170,19 +171,19 @@ func (h *WalletHandler) ReverseTransaction(c echo.Context) error {
 func (h *WalletHandler) GetMutations(c echo.Context) error {
 	userID := c.Param("userId")
 	if userID == "" {
-		return respondError(c, appErrors.NewValidationError("user id is required"))
+		return middleware.RespondError(c, appErrors.NewValidationError("user id is required"))
 	}
 	if userID == domain.SystemWalletID {
-		return respondError(c, appErrors.ErrSystemWallet)
+		return middleware.RespondError(c, appErrors.ErrSystemWallet)
 	}
 
-	authUserID, err := GetAuthenticatedUserID(c)
+	authUserID, err := middleware.GetAuthenticatedUserID(c)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	if authUserID != userID {
-		return respondError(c, appErrors.ErrForbidden)
+		return middleware.RespondError(c, appErrors.ErrForbidden)
 	}
 
 	query := domain.MutationQuery{}
@@ -191,14 +192,14 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 	if p := c.QueryParam("page"); p != "" {
 		page, err := strconv.Atoi(p)
 		if err != nil || page < 1 {
-			return respondError(c, appErrors.NewValidationError("page must be a positive integer"))
+			return middleware.RespondError(c, appErrors.NewValidationError("page must be a positive integer"))
 		}
 		query.Page = page
 	}
 	if pp := c.QueryParam("per_page"); pp != "" {
 		perPage, err := strconv.Atoi(pp)
 		if err != nil || perPage < 1 {
-			return respondError(c, appErrors.NewValidationError("per_page must be a positive integer"))
+			return middleware.RespondError(c, appErrors.NewValidationError("per_page must be a positive integer"))
 		}
 		query.PerPage = perPage
 	}
@@ -207,14 +208,14 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 	if sd := c.QueryParam("start_date"); sd != "" {
 		t, err := time.Parse("2006-01-02", sd)
 		if err != nil {
-			return respondError(c, appErrors.NewValidationError("start_date must be in YYYY-MM-DD format"))
+			return middleware.RespondError(c, appErrors.NewValidationError("start_date must be in YYYY-MM-DD format"))
 		}
 		query.StartDate = &t
 	}
 	if ed := c.QueryParam("end_date"); ed != "" {
 		t, err := time.Parse("2006-01-02", ed)
 		if err != nil {
-			return respondError(c, appErrors.NewValidationError("end_date must be in YYYY-MM-DD format"))
+			return middleware.RespondError(c, appErrors.NewValidationError("end_date must be in YYYY-MM-DD format"))
 		}
 		// Set end_date to end of day
 		endOfDay := t.Add(24*time.Hour - time.Nanosecond)
@@ -223,7 +224,7 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 
 	resp, err := h.walletService.GetMutations(c.Request().Context(), userID, query)
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, resp)
@@ -233,7 +234,7 @@ func (h *WalletHandler) GetMutations(c echo.Context) error {
 func (h *WalletHandler) Reconcile(c echo.Context) error {
 	report, err := h.walletService.Reconcile(c.Request().Context())
 	if err != nil {
-		return respondError(c, err)
+		return middleware.RespondError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
