@@ -259,9 +259,7 @@ curl -s http://localhost:8080/api/v1/wallets \
 
 4. **Multi-currency**: Field `currency` sudah ada di tabel `wallets`, tapi validasi bahwa transfer hanya terjadi antara wallet dengan currency yang sama belum diimplementasi.
 
-5. **Authentication/Authorization**: Tidak ada autentikasi. Dalam production, setiap endpoint harus memvalidasi bahwa user hanya bisa mengakses wallet miliknya sendiri.
-
-6. **Rate limiting**: Belum ada pembatasan rate. Dalam production, diperlukan untuk mencegah abuse.
+5. **Rate limiting**: Belum ada pembatasan rate. Dalam production, diperlukan untuk mencegah abuse.
 
 ### 7. Validasi Request (`go-playground/validator`)
 
