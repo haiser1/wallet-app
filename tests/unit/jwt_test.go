@@ -1,9 +1,13 @@
 package unit
 
 import (
+	"net/http/httptest"
 	"testing"
 
+	"github.com/labstack/echo/v4"
+
 	"test-teknis/internal/auth"
+	"test-teknis/internal/middleware"
 )
 
 func TestJWT_GenerateAndParseToken(t *testing.T) {
@@ -47,5 +51,43 @@ func TestJWT_MalformedToken(t *testing.T) {
 	_, err := auth.ParseToken("not.a.valid.jwt.token", secret)
 	if err == nil {
 		t.Fatal("expected error when parsing malformed token")
+	}
+}
+
+func TestJWTMiddleware_BearerAndRawToken(t *testing.T) {
+	secret := "test-secret"
+	userID := "11111111-1111-1111-1111-111111111111"
+	tokenStr, _ := auth.GenerateToken(userID, secret)
+
+	e := echo.New()
+	mw := middleware.JWTMiddleware(secret)
+
+	h := mw(func(c echo.Context) error {
+		gotID, err := middleware.GetAuthenticatedUserID(c)
+		if err != nil {
+			return err
+		}
+		if gotID != userID {
+			t.Errorf("expected %s, got %s", userID, gotID)
+		}
+		return c.String(200, "ok")
+	})
+
+	// Case 1: Bearer prefix
+	req1 := httptest.NewRequest("GET", "/", nil)
+	req1.Header.Set("Authorization", "Bearer "+tokenStr)
+	rec1 := httptest.NewRecorder()
+	c1 := e.NewContext(req1, rec1)
+	if err := h(c1); err != nil {
+		t.Fatalf("Bearer token failed: %v", err)
+	}
+
+	// Case 2: Raw token (Swagger UI direct header format)
+	req2 := httptest.NewRequest("GET", "/", nil)
+	req2.Header.Set("Authorization", tokenStr)
+	rec2 := httptest.NewRecorder()
+	c2 := e.NewContext(req2, rec2)
+	if err := h(c2); err != nil {
+		t.Fatalf("Raw token failed: %v", err)
 	}
 }

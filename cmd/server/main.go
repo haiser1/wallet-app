@@ -38,7 +38,7 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description Type 'Bearer ' followed by your JWT token.
+// @description Enter your JWT token directly or prefixed with 'Bearer '.
 
 func main() {
 	// Setup zerolog logger

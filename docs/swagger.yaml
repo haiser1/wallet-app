@@ -516,7 +516,7 @@ paths:
       - Wallet
 securityDefinitions:
   BearerAuth:
-    description: Type 'Bearer ' followed by your JWT token.
+    description: Enter your JWT token directly or prefixed with 'Bearer '.
     in: header
     name: Authorization
     type: apiKey

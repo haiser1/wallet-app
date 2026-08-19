@@ -46,7 +46,7 @@ func RequestIDMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// JWTMiddleware validates the Bearer JWT token from the Authorization header and stores user_id in context.
+// JWTMiddleware validates the JWT token from the Authorization header (supports "Bearer <token>" or raw "<token>").
 func JWTMiddleware(secret string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -55,12 +55,19 @@ func JWTMiddleware(secret string) echo.MiddlewareFunc {
 				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			tokenStr := authHeader
+			if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 {
+					tokenStr = parts[1]
+				}
+			}
+
+			tokenStr = strings.TrimSpace(tokenStr)
+			if tokenStr == "" {
 				return RespondError(c, appErrors.ErrUnauthorized)
 			}
 
-			tokenStr := parts[1]
 			claims, err := auth.ParseToken(tokenStr, secret)
 			if err != nil {
 				return RespondError(c, appErrors.ErrUnauthorized)
